@@ -81,7 +81,7 @@ test("Google Business hours synchronization has a manual fallback", () => {
 });
 
 test("each merchant PWA opens its own storefront", () => {
-  const manifest = fs.readFileSync("app/[slug]/manifest.ts", "utf8");
+  const manifest = fs.readFileSync("app/[slug]/manifest.webmanifest/route.ts", "utf8");
   assert.match(manifest, /start_url: "\/" \+ slug/);
   assert.match(manifest, /scope: "\/"/);
 });

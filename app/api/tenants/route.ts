@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
       token,
       body: { p_name: name, p_slug: slug, p_business_type: businessType },
     });
-    return NextResponse.json({ success: true, tenantId }, { status: 201 });
+    const response = NextResponse.json({ success: true, tenantId }, { status: 201 });
+    response.cookies.set("sb-active-tenant", tenantId, {
+      httpOnly: true, secure: process.env.NODE_ENV === "production",
+      sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30,
+    });
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo crear el comercio";
     const conflict = /duplicate key|unique constraint/i.test(message);

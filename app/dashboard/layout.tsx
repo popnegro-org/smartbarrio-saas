@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/supabase/rest";
+import { getTenantContext } from "@/lib/supabase/tenant-context";
+import { TenantSwitcher } from "@/components/dashboard/TenantSwitcher";
 
 const navigation = [
   ["Inicio", "/dashboard"],
@@ -11,14 +13,16 @@ const navigation = [
 ] as const;
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { user } = await getCurrentSession();
+  const { user, accessToken } = await getCurrentSession();
   if (!user) redirect("/login");
+  const context = accessToken ? await getTenantContext(user.id, accessToken) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 md:flex">
       <aside className="border-b bg-white p-4 md:min-h-screen md:w-64 md:border-b-0 md:border-r">
         <Link href="/dashboard" className="mb-5 block text-xl font-bold">SmartBarrio</Link>
-        <p className="mb-4 truncate text-xs text-gray-500">{user.email}</p>
+        <p className="mb-3 truncate text-xs text-gray-500">{user.email}</p>
+        {context && <TenantSwitcher tenants={context.tenants} activeTenantId={context.tenant.id} />}
         <nav className="flex gap-2 overflow-x-auto md:flex-col">
           {navigation.map(([label, href]) => (
             <Link key={href} href={href} className="whitespace-nowrap rounded-lg px-3 py-2.5 text-sm hover:bg-gray-100">

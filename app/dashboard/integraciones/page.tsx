@@ -1,21 +1,18 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession, supabaseRequest } from "@/lib/supabase/rest";
+import { getTenantContext } from "@/lib/supabase/tenant-context";
 import { WhatsAppConnection } from "@/components/dashboard/WhatsAppConnection";
 
-type Membership = { tenant_id: string; role: string };
 type Instance = { connection_status: string };
 type SocialIntegration = { provider: string; status: string; account_name: string | null };
 
 export default async function IntegrationsPage() {
   const { user, accessToken } = await getCurrentSession();
   if (!user || !accessToken) redirect("/login");
-  const memberships = await supabaseRequest<Membership[]>(
-    "tenant_members?select=tenant_id,role&user_id=eq." + user.id + "&order=created_at.asc&limit=1",
-    { token: accessToken },
-  );
-  if (!memberships.length) redirect("/dashboard/onboarding");
-  const tenantId = memberships[0].tenant_id;
-  const canManage = ["owner", "admin"].includes(memberships[0].role);
+  const context = await getTenantContext(user.id, accessToken);
+  if (!context) redirect("/dashboard/onboarding");
+  const tenantId = context.tenant.id;
+  const canManage = ["owner", "admin"].includes(context.role);
   const [instances, social] = await Promise.all([
     supabaseRequest<Instance[]>("whatsapp_instances?select=connection_status&tenant_id=eq." + tenantId + "&limit=1", { token: accessToken }),
     supabaseRequest<SocialIntegration[]>("social_integrations?select=provider,status,account_name&tenant_id=eq." + tenantId, { token: accessToken }),

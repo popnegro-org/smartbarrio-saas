@@ -69,6 +69,13 @@ create table if not exists public.whatsapp_instances (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
 
+create table if not exists public.whatsapp_credentials (
+  instance_id uuid primary key references public.whatsapp_instances(id) on delete cascade,
+  api_token_ciphertext text not null,
+  encryption_key_version text not null,
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.push_subscribers (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -179,6 +186,8 @@ alter table public.tenant_members enable row level security;
 alter table public.products_services enable row level security;
 alter table public.offers enable row level security;
 alter table public.whatsapp_instances enable row level security;
+alter table public.whatsapp_credentials enable row level security;
+revoke all on public.whatsapp_credentials from public, anon, authenticated;
 alter table public.push_subscribers enable row level security;
 alter table public.social_integrations enable row level security;
 alter table public.integration_events enable row level security;
@@ -248,14 +257,15 @@ grant insert on public.push_subscribers to anon, authenticated;
 grant all on public.tenants, public.tenant_members, public.products_services, public.offers,
   public.whatsapp_instances, public.push_subscribers, public.social_integrations,
   public.integration_events to service_role;
+grant all on public.whatsapp_credentials to service_role;
 grant all on public.social_credentials to service_role;
 
-comment on table public.social_credentials is
-  'Server-only AES-256-GCM encrypted OAuth credentials. Never expose through the Supabase Data API.';
 comment on function private.create_tenant(text,text,text) is
   'Atomically creates a tenant and its owner membership for the authenticated user.';
 
 comment on table public.social_credentials is
   'Server-only AES-256-GCM encrypted OAuth credentials. RLS enabled; only service_role receives table grants.';
+comment on table public.whatsapp_credentials is
+  'Server-only AES-256-GCM encrypted Evolution instance tokens. RLS enabled; only service_role receives table grants.';
 
 commit;

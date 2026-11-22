@@ -1,0 +1,202 @@
+{
+  "name": "SmartBarrio - Auto respuesta barrio",
+  "nodes": [
+    {
+      "id": "message-webhook",
+      "name": "Mensaje entrante",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smartbarrio/inbound-message",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "normalize",
+      "name": "Normalizar y autenticar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const request = $input.first().json;\nconst headers = request.headers ?? {};\nconst secret = $env.AUTOMATION_SECRET;\nif (!secret || headers['x-automation-secret'] !== secret) throw new Error('Unauthorized webhook');\nconst body = request.body ?? {};\nfor (const key of ['tenantId', 'channel', 'sender', 'message', 'providerMessageId']) if (typeof body[key] !== 'string' || !body[key]) throw new Error('Invalid message: ' + key);\nif (!['whatsapp','instagram'].includes(body.channel)) throw new Error('Unsupported channel');\nreturn [{ json: { tenantId: body.tenantId, channel: body.channel, sender: body.sender, message: body.message.slice(0,4000), providerMessageId: body.providerMessageId, instanceName: body.instanceName ?? null } }];"
+      }
+    },
+    {
+      "id": "tenant-data",
+      "name": "Consultar comercio y catálogo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/tenants/' + $node['Normalizar y autenticar'].json.tenantId + '/public-data' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "build-reply",
+      "name": "Preparar respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const input = $node['Normalizar y autenticar'].json;\nconst store = $input.first().json;\nconst query = input.message.toLocaleLowerCase('es-AR');\nconst url = store.landingUrl;\nlet reply;\nif (/horario|abren|abierto|cierran|abren hoy/.test(query)) reply = 'Nuestros horarios: ' + (store.openingHoursText || 'consultá los horarios actualizados en ' + url);\nelse if (/precio|producto|catálogo|catalogo|servicio|stock/.test(query)) reply = 'Podés consultar productos, servicios y disponibilidad aquí: ' + url;\nelse reply = '¡Gracias por comunicarte con ' + (store.name || 'nuestro comercio') + '! Encontrá horarios, productos y servicios en ' + url;\nreturn [{ json: { ...input, reply, landingUrl: url, idempotencyKey: input.channel + ':' + input.providerMessageId } }];"
+      }
+    },
+    {
+      "id": "whatsapp-reply",
+      "name": "Responder WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/integrations/evolution/reply' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "instagram-reply",
+      "name": "Responder Instagram DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        420
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/integrations/instagram/reply' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Mensaje entrante": {
+      "main": [
+        [
+          {
+            "node": "Normalizar y autenticar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar y autenticar": {
+      "main": [
+        [
+          {
+            "node": "Consultar comercio y catálogo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar comercio y catálogo": {
+      "main": [
+        [
+          {
+            "node": "Preparar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder WhatsApp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Responder Instagram DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

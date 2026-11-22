@@ -149,9 +149,9 @@ returns uuid
 language sql
 security invoker
 set search_path = ''
-as $
+as $create_tenant$
   select private.create_tenant(p_name, p_slug, p_business_type);
-$;
+$create_tenant$;
 revoke all on function public.create_tenant(text,text,text) from public, anon;
 grant execute on function public.create_tenant(text,text,text) to authenticated;
 

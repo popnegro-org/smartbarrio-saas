@@ -80,12 +80,21 @@ Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verifi
 
 **No desplegar ni aplicar la migración hasta resolver estos bloqueos:**
 
-1. El proyecto Supabase conectado (rpopiqeulnxbsclvvfuf) figura INACTIVE. La migración supabase/migrations/20261122170000_multitenant_saas.sql todavía no fue aplicada. Restaurarlo puede implicar consumo/costos; requiere decisión del propietario. La función Edge y el bucket Storage tampoco están desplegados.
-2. El proyecto Vercel smartbarrio-saas no tiene configuradas las variables Supabase requeridas para la rama candidata. No se generó un Preview de esta versión.
+1. El proyecto Supabase conectado (rpopiqeulnxbsclvvfuf) estaba INACTIVE. Se solicitó su restauración el 22/11/2026 y el último estado observado fue COMING_UP. No se aplicó la migración supabase/migrations/20261122170000_multitenant_saas.sql porque el proyecto todavía no figura ACTIVE_HEALTHY. La función Edge y el bucket Storage tampoco están desplegados.
+2. En Vercel smartbarrio-saas se configuraron NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY únicamente para Preview y exclusivamente para feat/multitenant-saas-foundation. No se modificó Production. El deployment candidato del commit 9856f106a8fade5bf24d70a651cba30ed3496a12 fue creado y su último estado observado fue BUILDING. La configuración server-side SUPABASE_SERVICE_ROLE_KEY sigue pendiente.
 3. OAuth de Meta y Google requiere credenciales reales, URLs de callback registradas, APIs habilitadas y permisos aprobados.
 4. Evolution API y n8n requieren un VPS, DNS y secretos reales. No se ejecutaron conexiones QR ni mensajes reales.
 5. OneSignal requiere una aplicación y dominios autorizados.
 6. La sincronización de horarios/ofertas, mensajes WhatsApp e Instagram aún no se validó contra cuentas reales.
+
+## Correcciones de seguridad y QA — 22/11/2026
+
+- El middleware del dashboard ahora falla de forma cerrada con HTTP 503 si falta la configuración de Supabase o el proveedor de autenticación no responde; no permite continuar sin validar sesión.
+- Se añadió una prueba de regresión para esta condición.
+- Se corrigieron valores CSS de flex alignment (`start`/`end`) que producían advertencias de Autoprefixer.
+- Browser QA: PASS (lint, Deno check, typecheck, unit tests, Docker Compose, build y Playwright funcional/accesibilidad).
+- Lighthouse CI: PASS. CodeQL: PASS.
+- Evidencia Browser QA: artifact del workflow run 45078586143.
 
 ## Seguridad de despliegue
 

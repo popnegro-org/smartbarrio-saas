@@ -5,7 +5,7 @@ import fs from "node:fs";
 const migration = fs.readFileSync("supabase/migrations/20261122170000_multitenant_saas.sql", "utf8");
 
 test("multitenant migration defines required tenant resources", () => {
-  for (const table of ["tenants", "tenant_members", "products_services", "offers", "whatsapp_instances", "push_subscribers", "social_integrations", "integration_events"]) {
+  for (const table of ["tenants", "tenant_members", "products_services", "offers", "whatsapp_instances", "push_subscribers", "social_integrations", "social_credentials", "whatsapp_credentials", "integration_events"]) {
     assert.match(migration, new RegExp("create table if not exists (public|private)\\." + table));
   }
 });

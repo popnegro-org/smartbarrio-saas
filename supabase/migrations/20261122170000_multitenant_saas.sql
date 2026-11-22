@@ -143,8 +143,8 @@ begin
   if p_business_type not in ('almacen','rotiseria','peluqueria','ferreteria','otro') then
     raise exception 'Invalid business type' using errcode = '22023';
   end if;
-  insert into public.tenants(name, slug, business_type, created_by)
-  values (trim(p_name), p_slug, p_business_type, v_user_id) returning id into v_tenant_id;
+  insert into public.tenants(name, slug, business_type, created_by, is_published)
+  values (trim(p_name), p_slug, p_business_type, v_user_id, true) returning id into v_tenant_id;
   insert into public.tenant_members(tenant_id, user_id, role) values (v_tenant_id, v_user_id, 'owner');
   return v_tenant_id;
 end;

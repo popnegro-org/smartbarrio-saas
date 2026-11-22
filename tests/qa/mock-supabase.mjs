@@ -65,8 +65,7 @@ const server = http.createServer((request, response) => {
     response.end(JSON.stringify(url.searchParams.get("tenant_id") === "eq." + tenantId ? offers : []));
     return;
   }
-  response.statusCode = 404;
-  response.end(JSON.stringify({ message: "Mock Supabase route not found" }));
+  response.end(JSON.stringify([]));
 });
 
 server.listen(54321, "127.0.0.1", () => {

@@ -53,10 +53,11 @@ jobs:
         run: npm install --no-save @playwright/test
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Build
-        run: npm run build
       - name: Start mock Supabase REST
         run: node tests/qa/mock-supabase.mjs > /tmp/mock-supabase.log 2>&1 &
+
+      - name: Build
+        run: npm run build
       - name: Start application
         run: npm run start -- --hostname 0.0.0.0 > /tmp/smartbarrio-next.log 2>&1 &
       - name: Wait for application

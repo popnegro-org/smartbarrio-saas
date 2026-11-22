@@ -11,6 +11,7 @@ export default function LoginPage() {
         <p className="mb-6 text-center text-sm text-gray-600">Administrá tu página, catálogo y ofertas.</p>
         <Suspense fallback={<div className="rounded-xl border bg-white p-6">Cargando formulario…</div>}>
           <LoginForm />
+        <p className="mt-5 text-center text-sm text-gray-600">¿No tenés cuenta? <Link href="/register" className="font-medium text-emerald-700 underline">Crear cuenta</Link></p>
         </Suspense>
       </div>
     </main>

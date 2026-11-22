@@ -143,6 +143,18 @@ begin
 end;
 $$;
 
+-- Public RPC wrapper: private schema stays outside the Data API exposed schemas.
+create or replace function public.create_tenant(p_name text, p_slug text, p_business_type text default 'otro')
+returns uuid
+language sql
+security invoker
+set search_path = ''
+as $
+  select private.create_tenant(p_name, p_slug, p_business_type);
+$;
+revoke all on function public.create_tenant(text,text,text) from public, anon;
+grant execute on function public.create_tenant(text,text,text) to authenticated;
+
 revoke all on function private.has_tenant_role(uuid,text[]) from public, anon;
 grant execute on function private.has_tenant_role(uuid,text[]) to anon, authenticated;
 revoke all on function private.create_tenant(text,text,text) from public, anon;

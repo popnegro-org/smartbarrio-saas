@@ -47,6 +47,8 @@ export async function POST(request: NextRequest) {
 
     const landingUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "") + "/" + tenant.slug;
     const text = [offer.title, offer.description ?? "", landingUrl].filter(Boolean).join("\n");
+    fallbackText = text;
+    fallbackUrl = landingUrl;
     const integrations = await supabaseRequest<Integration[]>(
       "social_integrations?select=id,status,external_account_id,token_expires_at&tenant_id=eq." + offer.tenant_id + "&provider=eq.google_business&limit=1",
       { admin: true },

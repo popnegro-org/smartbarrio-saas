@@ -55,6 +55,12 @@ export async function GET(request: NextRequest) {
     const instagram = page?.instagram_business_account;
     if (!page || !instagram) throw new Error("No Instagram professional account is connected to the selected Facebook pages");
 
+    const subscriptionUrl = new URL("https://graph.facebook.com/" + version + "/" + page.id + "/subscribed_apps");
+    subscriptionUrl.searchParams.set("subscribed_fields", "messages,messaging_postbacks");
+    subscriptionUrl.searchParams.set("access_token", page.access_token);
+    const subscriptionResponse = await fetch(subscriptionUrl, { method: "POST", cache: "no-store" });
+    if (!subscriptionResponse.ok) throw new Error("Meta webhook subscription failed");
+
     const rows = await supabaseRequest<IntegrationRow[]>("social_integrations?on_conflict=tenant_id,provider&select=id", {
       method: "POST", admin: true, prefer: "resolution=merge-duplicates,return=representation",
       body: [{

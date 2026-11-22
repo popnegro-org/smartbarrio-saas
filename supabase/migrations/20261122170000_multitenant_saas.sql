@@ -253,4 +253,56 @@ comment on table private.social_credentials is
   'Server-only AES-256-GCM encrypted OAuth credentials. Never expose through the Supabase Data API.';
 comment on function private.create_tenant(text,text,text) is
   'Atomically creates a tenant and its owner membership for the authenticated user.';
+
+-- Trusted server-only RPCs for the encrypted OAuth credential vault.
+create or replace function public.store_social_credentials(
+  p_integration_id uuid,
+  p_access_token_ciphertext text,
+  p_refresh_token_ciphertext text,
+  p_encryption_key_version text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $store_credentials$
+begin
+  if p_access_token_ciphertext is null or char_length(p_access_token_ciphertext) < 32
+     or p_encryption_key_version is null or char_length(p_encryption_key_version) > 32 then
+    raise exception 'Invalid encrypted credential payload' using errcode = '22023';
+  end if;
+  insert into private.social_credentials(
+    integration_id, access_token_ciphertext, refresh_token_ciphertext, encryption_key_version, updated_at
+  )
+  values (
+    p_integration_id, p_access_token_ciphertext, p_refresh_token_ciphertext, p_encryption_key_version, now()
+  )
+  on conflict (integration_id) do update set
+    access_token_ciphertext = excluded.access_token_ciphertext,
+    refresh_token_ciphertext = coalesce(excluded.refresh_token_ciphertext, private.social_credentials.refresh_token_ciphertext),
+    encryption_key_version = excluded.encryption_key_version,
+    updated_at = now();
+end;
+$store_credentials$;
+
+create or replace function public.read_social_credentials(p_integration_id uuid)
+returns table (
+  access_token_ciphertext text,
+  refresh_token_ciphertext text,
+  encryption_key_version text
+)
+language sql
+security definer
+set search_path = ''
+as $read_credentials$
+  select c.access_token_ciphertext, c.refresh_token_ciphertext, c.encryption_key_version
+  from private.social_credentials c
+  where c.integration_id = p_integration_id;
+$read_credentials$;
+
+revoke all on function public.store_social_credentials(uuid,text,text,text) from public, anon, authenticated;
+revoke all on function public.read_social_credentials(uuid) from public, anon, authenticated;
+grant execute on function public.store_social_credentials(uuid,text,text,text) to service_role;
+grant execute on function public.read_social_credentials(uuid) to service_role;
+
 commit;

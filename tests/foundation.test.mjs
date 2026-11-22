@@ -85,3 +85,12 @@ test("each merchant PWA opens its own storefront", () => {
   assert.match(manifest, /start_url: "\/" \+ slug/);
   assert.match(manifest, /scope: "\/"/);
 });
+
+test("dashboard authentication fails closed when Supabase is unavailable", () => {
+  const middleware = fs.readFileSync("middleware.ts", "utf8");
+  assert.match(middleware, /if \(!url \|\| !key\) return unavailable\(\)/);
+  assert.match(middleware, /status: 503/);
+  assert.match(middleware, /catch \{/);
+  assert.match(middleware, /return unavailable\(\)/);
+  assert.match(middleware, /httpOnly: true/);
+});

@@ -62,6 +62,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ sl
   const now = Date.now();
   const activeOffers = offers.filter((offer) => !offer.expires_at || new Date(offer.expires_at).getTime() > now);
   const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "https://smartbarrio.vercel.app").replace(/\/$/, "");
+  const openingHoursSpecification = toOpeningHoursSpecification(store.opening_hours);
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
@@ -78,7 +79,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ sl
       addressCountry: "AR",
     },
     sameAs: [store.instagram_url].filter(Boolean),
-    openingHoursSpecification: toOpeningHoursSpecification(store.opening_hours),
+    ...(openingHoursSpecification.length ? { openingHoursSpecification } : {}),
   };
 
   return (

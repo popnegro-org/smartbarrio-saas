@@ -61,7 +61,7 @@ test('Accessibility QA: images and form controls have accessible names', async (
 
 test("Tenant storefront: catalog, LocalBusiness JSON-LD, PWA manifest and iOS guide", async ({ page, request }) => {
   await page.goto("/demo-comercio", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Almacén Demo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Almacén Demo" }).first()).toBeVisible();
   await expect(page.getByText("Yerba orgánica")).toBeVisible();
   await expect(page.getByText("Lunes")).toBeVisible();
 

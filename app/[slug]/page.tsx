@@ -31,6 +31,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description: store.description ?? "Productos, servicios y contacto de " + store.name + ".",
       alternates: { canonical: "/" + store.slug },
       openGraph: { title: store.name, description: store.description ?? store.name, images: store.logo_url ? [store.logo_url] : [] },
+      manifest: "/" + store.slug + "/manifest.webmanifest",
+      applicationName: store.name,
     };
   } catch {
     return { title: "SmartBarrio" };

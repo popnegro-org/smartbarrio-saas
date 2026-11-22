@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageCircle, Minus, Plus } from "lucide-react";
+import { MessageCircle, Minus, Plus, Bell } from "lucide-react";
+
+type OneSignalSdk = {
+  init(options: { appId: string; notifyButton?: { enable: boolean } }): Promise<void>;
+  User: { addTag(key: string, value: string): Promise<void>; PushSubscription: { id: string | null } };
+  Slidedown: { promptPush(): Promise<void> };
+};
+
+declare global {
+  interface Window { OneSignalDeferred?: Array<(sdk: OneSignalSdk) => Promise<void> | void>; }
+}
 
 export type StoreProduct = {
   id: string;
@@ -16,6 +26,8 @@ type Store = { id: string; name: string; whatsapp_number: string | null };
 
 export function StorefrontActions({ tenant, products }: { tenant: Store; products: StoreProduct[] }) {
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMessage, setPushMessage] = useState("");
   const totalItems = useMemo(() => Object.values(cart).reduce((a, b) => a + b, 0), [cart]);
   const total = useMemo(() => products.reduce((sum, p) => sum + (p.price ?? 0) * (cart[p.id] ?? 0), 0), [cart, products]);
 
@@ -26,6 +38,42 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
       if (quantity <= 0) delete next[id];
       else next[id] = quantity;
       return next;
+    });
+  }
+
+  async function subscribePush() {
+    const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+    if (!appId) { setPushMessage("Las notificaciones todavía no están configuradas."); return; }
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+      setPushMessage("Este navegador no admite notificaciones web."); return;
+    }
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const installed = window.matchMedia("(display-mode: standalone)").matches;
+    if (ios && !installed) {
+      setPushMessage("En iPhone o iPad: Safari → Compartir → Agregar a inicio. Abrí el icono y volvé a activar las notificaciones.");
+      return;
+    }
+    setPushLoading(true);
+    setPushMessage("");
+    const queue = window.OneSignalDeferred;
+    if (!queue) { setPushLoading(false); setPushMessage("No se pudo inicializar el servicio de notificaciones."); return; }
+    queue.push(async (OneSignal) => {
+      try {
+        await OneSignal.init({ appId, notifyButton: { enable: false } });
+        await OneSignal.User.addTag("tenant_id", tenant.id);
+        await OneSignal.Slidedown.promptPush();
+        const subscriptionId = OneSignal.User.PushSubscription.id;
+        if (subscriptionId) {
+          await fetch("/api/push/subscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tenantId: tenant.id, subscriptionId }),
+          });
+        }
+        setPushMessage("Preferencias de notificaciones actualizadas.");
+      } catch {
+        setPushMessage("No se pudo activar la suscripción.");
+      } finally { setPushLoading(false); }
     });
   }
 
@@ -70,6 +118,28 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
           </div>
         </div>
       )}
+      <section className="mt-10 rounded-xl border bg-white p-5">
+        <div className="flex items-start gap-3">
+          <Bell size={22} className="mt-1 text-emerald-700" />
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold">Recibí ofertas de {tenant.name}</h2>
+            <p className="mt-1 text-sm text-gray-600">Activá las notificaciones para enterarte de promociones y novedades.</p>
+            <button type="button" disabled={pushLoading} onClick={subscribePush} className="mt-3 rounded-lg border px-4 py-2 text-sm font-medium disabled:opacity-50">
+              {pushLoading ? "Activando…" : "Activar notificaciones"}
+            </button>
+            {pushMessage && <p role="status" className="mt-2 text-sm text-gray-600">{pushMessage}</p>}
+            <details className="mt-3 text-sm text-gray-600">
+              <summary className="cursor-pointer font-medium">Instrucciones para iPhone y iPad</summary>
+              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                <li>Abrí esta página en Safari.</li>
+                <li>Tocá Compartir y elegí Agregar a inicio.</li>
+                <li>Abrí el comercio desde el nuevo icono.</li>
+                <li>Activá las notificaciones desde la página instalada.</li>
+              </ol>
+            </details>
+          </div>
+        </div>
+      </section>
     </>
   );
 }

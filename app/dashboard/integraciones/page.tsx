@@ -30,7 +30,9 @@ export default async function IntegrationsPage() {
         <h2 className="font-semibold">WhatsApp Simple</h2>
         <p className="mt-1 text-sm text-gray-600">Configurá el número desde Mi comercio y recibí pedidos mediante wa.me.</p>
       </article>
-      <WhatsAppConnection tenantId={tenantId} initialStatus={instances[0]?.connection_status ?? "disconnected"} />
+      {canManage
+        ? <WhatsAppConnection tenantId={tenantId} initialStatus={instances[0]?.connection_status ?? "disconnected"} />
+        : <article className="rounded-xl border bg-white p-5"><h2 className="font-semibold">WhatsApp conectado</h2><p className="mt-1 text-sm text-gray-600">Estado: {instances[0]?.connection_status ?? "disconnected"}. Solo propietarios y administradores pueden modificar la conexión.</p></article>}
       <article className="rounded-xl border bg-white p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">Google Business Profile</h2><p className="mt-1 text-sm text-gray-600">{google?.account_name ?? "Publicación de ofertas y novedades locales."}</p></div>

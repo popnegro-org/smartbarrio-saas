@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const allowed = ["name", "description", "phone", "whatsapp_number", "address", "city", "province", "instagram_url", "google_review_url", "is_published"];
+    const allowed = ["name", "description", "phone", "whatsapp_number", "address", "city", "province", "instagram_url", "google_review_url", "logo_url", "is_published"];
     const update: Record<string, unknown> = {};
     for (const key of allowed) if (body[key] !== undefined) update[key] = body[key];
     if (typeof update.name === "string" && (update.name.trim().length < 2 || update.name.trim().length > 120)) {

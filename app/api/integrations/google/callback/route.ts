@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
 
     let location: { name: string; title?: string } | null = null;
     let accountLabel = "";
+    let accountResource = "";
     for (const account of accounts) {
       const locationsResponse = await fetch(
         "https://mybusinessbusinessinformation.googleapis.com/v1/" + account.name + "/locations?readMask=name,title&pageSize=100",
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
       if (locations[0]) {
         location = locations[0];
         accountLabel = account.accountName ?? account.name;
+        accountResource = account.name;
         break;
       }
     }
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
       method: "POST", admin: true, prefer: "resolution=merge-duplicates,return=representation",
       body: [{
         tenant_id: state.tenantId, provider: "google_business", status: "connected",
-        external_account_id: accountLabel.startsWith("accounts/") ? accountLabel + "/" + location.name : accounts.find((item) => item.accountName === accountLabel)?.name + "/" + location.name, account_name: location.title ?? accountLabel,
+        external_account_id: accountResource + "/" + location.name, account_name: location.title ?? accountLabel,
         scopes: (tokens.scope ?? "https://www.googleapis.com/auth/business.manage").split(" "),
         token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         last_error: null,

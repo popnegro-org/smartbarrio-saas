@@ -89,7 +89,7 @@ Deno.serve(async (request: Request) => {
       event = rows[0] ?? event;
     } else {
       const rows = await rest<EventRow[]>(
-        "integration_events?select=id,status,attempts",
+        "integration_events?on_conflict=tenant_id,idempotency_key&select=id,status,attempts",
         {
           method: "POST",
           headers: { Prefer: "resolution=ignore-duplicates,return=representation" },

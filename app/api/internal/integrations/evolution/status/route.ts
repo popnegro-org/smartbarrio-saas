@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isInternalRequest } from "@/lib/integrations/internal-auth";
 import { supabaseRequest } from "@/lib/supabase/rest";
+import { readWhatsAppCredential } from "@/lib/integrations/whatsapp-credentials";
 
 type Offer = { id: string; tenant_id: string; title: string; description: string | null; channels: Record<string, boolean> };
-type Instance = { instance_name: string; connection_status: string };
+type Instance = { id: string; instance_name: string; connection_status: string };
 type IntegrationEvent = { id: string; status: string; attempts: number };
 
 export const runtime = "nodejs";
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (!tenants[0]?.is_published) return NextResponse.json({ skipped: true, reason: "commerce_not_published" });
 
     const instances = await supabaseRequest<Instance[]>(
-      "whatsapp_instances?select=instance_name,connection_status&tenant_id=eq." + body.tenantId + "&limit=1",
+      "whatsapp_instances?select=id,instance_name,connection_status&tenant_id=eq." + body.tenantId + "&limit=1",
       { admin: true },
     );
     const instance = instances[0];
@@ -43,9 +44,8 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.EVOLUTION_API_URL;
-    const apiKey = process.env.EVOLUTION_API_KEY;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (!baseUrl || !apiKey || !appUrl) {
+    if (!baseUrl || !appUrl) {
       return NextResponse.json({ error: "Evolution integration is not configured" }, { status: 503 });
     }
 
@@ -91,9 +91,11 @@ export async function POST(request: NextRequest) {
     }
 
     const message = [offer.title, offer.description ?? "", appUrl.replace(/\/$/, "") + "/" + tenants[0].slug].filter(Boolean).join("\n");
+    const instanceToken = await readWhatsAppCredential(instance.id);
+    if (!instanceToken) throw new Error("Encrypted Evolution instance token is unavailable");
     const response = await fetch(baseUrl.replace(/\/$/, "") + "/message/sendStatus/" + encodeURIComponent(instance.instance_name), {
       method: "POST",
-      headers: { apikey: apiKey, "Content-Type": "application/json" },
+      headers: { apikey: instanceToken, "Content-Type": "application/json" },
       body: JSON.stringify({
         statusMessage: {
           type: "text",

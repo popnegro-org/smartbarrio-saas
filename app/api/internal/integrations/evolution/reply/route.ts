@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isInternalRequest } from "@/lib/integrations/internal-auth";
 import { supabaseRequest } from "@/lib/supabase/rest";
+import { readWhatsAppCredential } from "@/lib/integrations/whatsapp-credentials";
 
 type Instance = { id: string; instance_name: string; connection_status: string };
 type EventRow = { id: string; status: string; attempts: number };
@@ -63,12 +64,13 @@ export async function POST(request: NextRequest) {
     }
 
     const baseUrl = process.env.EVOLUTION_API_URL;
-    const apiKey = process.env.EVOLUTION_API_KEY;
-    if (!baseUrl || !apiKey) throw new Error("Evolution API is not configured");
+    if (!baseUrl) throw new Error("Evolution API is not configured");
+    const instanceToken = await readWhatsAppCredential(instance.id);
+    if (!instanceToken) throw new Error("Encrypted Evolution instance token is unavailable");
 
     const response = await fetch(baseUrl.replace(/\/$/, "") + "/message/sendText/" + encodeURIComponent(instance.instance_name), {
       method: "POST",
-      headers: { apikey: apiKey, "Content-Type": "application/json" },
+      headers: { apikey: instanceToken, "Content-Type": "application/json" },
       body: JSON.stringify({ number: sender, text: body.reply.slice(0, 4000) }),
       cache: "no-store",
       signal: AbortSignal.timeout(15000),

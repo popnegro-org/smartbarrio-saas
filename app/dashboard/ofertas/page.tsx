@@ -6,11 +6,8 @@ import { OfferForm } from "./OfferForm";
 export default async function OffersPage() {
   const { user, accessToken } = await getCurrentSession();
   if (!user || !accessToken) redirect("/login");
-  const memberships = await supabaseRequest<Membership[]>(
-    `tenant_members?select=tenant_id,role&user_id=eq.${user.id}&order=created_at.asc&limit=1`,
-    { token: accessToken },
-  );
-  if (!memberships.length) redirect("/dashboard/onboarding");
+  const context = await getTenantContext(user.id, accessToken);
+  if (!context) redirect("/dashboard/onboarding");
 
   return (
     <section className="mx-auto max-w-3xl space-y-4">

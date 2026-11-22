@@ -44,3 +44,13 @@ test("VPS infrastructure keeps PostgreSQL and Redis private", () => {
   assert.doesNotMatch(postgresBlock, /\n\s+ports:/);
   assert.doesNotMatch(redisBlock, /\n\s+ports:/);
 });
+
+test("Supabase Edge Function is configured as an authenticated server-to-server dispatcher", () => {
+  const config = fs.readFileSync("supabase/config.toml", "utf8");
+  const fn = fs.readFileSync("supabase/functions/dispatch-offer/index.ts", "utf8");
+  assert.match(config, /\[functions\.dispatch-offer\]/);
+  assert.match(config, /verify_jwt = false/);
+  assert.match(fn, /AUTOMATION_SECRET/);
+  assert.match(fn, /integration_events/);
+  assert.match(fn, /N8N_WEBHOOK_BASE_URL/);
+});

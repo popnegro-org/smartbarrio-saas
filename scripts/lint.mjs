@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 
-const roots = ["app", "components", "lib"];
+const roots = ["app", "components", "lib", "supabase/functions"];
 const extensions = new Set([".ts", ".tsx", ".js", ".jsx"]);
 const files = [];
 

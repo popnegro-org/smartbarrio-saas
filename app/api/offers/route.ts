@@ -45,10 +45,24 @@ export async function POST(request: NextRequest) {
     const eventId = randomUUID();
     const webhookBase = process.env.N8N_WEBHOOK_BASE_URL;
     const secret = process.env.AUTOMATION_SECRET;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const useEdgeFunction = process.env.SUPABASE_FUNCTIONS_ENABLED === "true";
     let automationPending = false;
-    if (webhookBase && secret) {
+    if (secret && useEdgeFunction && supabaseUrl) {
       try {
-        const webhook = await fetch(`${webhookBase.replace(/\/$/, "")}/webhook/smartbarrio/offers`, {
+        const dispatch = await fetch(supabaseUrl.replace(/\/$/, "") + "/functions/v1/dispatch-offer", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + secret },
+          body: JSON.stringify({ tenantId: offer.tenant_id, offerId: offer.id, eventId }),
+          signal: AbortSignal.timeout(12000),
+        });
+        automationPending = !dispatch.ok;
+      } catch {
+        automationPending = true;
+      }
+    } else if (webhookBase && secret) {
+      try {
+        const webhook = await fetch(webhookBase.replace(/\/$/, "") + "/webhook/smartbarrio/offers", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-automation-secret": secret },
           body: JSON.stringify({ tenantId: offer.tenant_id, offerId: offer.id, eventId }),

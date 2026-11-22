@@ -48,8 +48,8 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       setPushMessage("Este navegador no admite notificaciones web."); return;
     }
-    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const installed = window.matchMedia("(display-mode: standalone)").matches;
+    const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const installed = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
     if (ios && !installed) {
       setShowIosGuide(true);
       setPushMessage("Primero instalá la página en la pantalla de inicio.");

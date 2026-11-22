@@ -18,7 +18,13 @@ test.describe('Visual regression · production baseline', () => {
       fs.mkdirSync(path.dirname(expected), { recursive: true });
 
       const production = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-      await production.goto(PRODUCTION + route, { waitUntil: 'networkidle' });
+      const baselineResponse = await production.goto(PRODUCTION + route, { waitUntil: 'networkidle' });
+      const baselineText = await production.locator('body').innerText().catch(() => '');
+      if (!baselineResponse || baselineResponse.status() >= 400 ||
+          /authentication required|vercel authentication|sign in to vercel/i.test(baselineText)) {
+        await production.close();
+        test.skip(true, 'Production visual baseline is protected or unavailable');
+      }
       await production.screenshot({ path: baseline, fullPage: true });
       await production.close();
 

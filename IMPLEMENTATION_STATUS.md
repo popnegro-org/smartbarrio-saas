@@ -83,7 +83,7 @@ Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verifi
 - Verificación posterior: 10 tablas del modelo multitenant presentes, todas con RLS habilitado; 21 políticas esperadas verificadas entre tablas públicas y Storage; bucket `tenant-assets` presente; RPC `public.create_tenant` y helper `private.has_tenant_role` presentes.
 - Las tablas de credenciales `social_credentials` y `whatsapp_credentials` permanecen deliberadamente sin políticas de usuario: RLS habilitado y privilegios únicamente para `service_role`. No habilitar acceso desde clientes.
 - Los avisos informativos RLS sin políticas en `leads` y `sales_inquiries` son tablas preexistentes de recepción de consultas; mantenerlas cerradas a acceso directo y usar su flujo server-side existente. No agregar políticas públicas genéricas.
-- Security Advisor: sin hallazgos de seguridad adicionales. Los avisos de RLS en las tablas de credenciales son intencionales por su aislamiento server-only.
+- Security Advisor: sin hallazgos de seguridad de nivel WARNING/ERROR; quedan cuatro avisos informativos RLS sin políticas: `leads`, `sales_inquiries` (tablas preexistentes, cerradas a acceso directo), y `social_credentials`, `whatsapp_credentials` (credenciales server-only). Verificación SQL de privilegios: anon/authenticated no pueden leer credenciales; service_role sí. Anon no puede ejecutar `create_tenant`; authenticated sí.
 - Edge Function `smartbarrio-submit`: activa (versión 3). `dispatch-offer`: todavía no desplegada.
 - Vercel: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` configuradas solo para Preview y la rama candidata. No se modificó Production.
 - Bloqueo: `SUPABASE_SERVICE_ROLE_KEY`, `AUTOMATION_SECRET`, `N8N_WEBHOOK_BASE_URL` y credenciales de proveedores no están disponibles para configurar/verificar el flujo server-side. No se generaron ni inventaron secretos.
@@ -108,4 +108,10 @@ Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verifi
 
 ## Criterio de cierre
 
-El PR permanece abierto y sin merge a main. El cierre requiere migración aplicada en Supabase activo, variables de entorno reales, Preview de Vercel, pruebas de integración con proveedores y revisión final del propietario.
+La migración base está aplicada y verificada. El PR permanece Draft y sin merge a main. Para completar el PMV conectado aún se requiere:
+
+1. Incorporar `SUPABASE_SERVICE_ROLE_KEY` como secreto server-side en Vercel Preview (no disponible mediante las conexiones actuales; no reutilizar credenciales de Neon).
+2. Configurar y verificar `AUTOMATION_SECRET` y `N8N_WEBHOOK_BASE_URL` antes de desplegar `dispatch-offer`.
+3. Reconstruir Preview con la migración aplicada y validar registro, login, onboarding, catálogo y aislamiento entre dos tenants con cuentas de prueba autorizadas.
+4. Configurar credenciales reales de Meta, Google, OneSignal, Evolution API y n8n; las integraciones permanecen desactivadas hasta completar pruebas seguras.
+5. Completar revisión visual/funcional y mantener el HUMAN GATE antes de merge a main o cualquier cambio crítico de producción.

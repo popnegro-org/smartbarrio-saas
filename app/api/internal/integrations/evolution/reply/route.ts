@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       tenantId?: unknown; channel?: unknown; sender?: unknown; reply?: unknown; idempotencyKey?: unknown;
     };
     if (body.channel !== "whatsapp") return NextResponse.json({ skipped: true, reason: "channel_mismatch" });
-    if (typeof body.tenantId !== "string" || typeof body.sender !== "string" ||
+    if (typeof body.tenantId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.tenantId) || typeof body.sender !== "string" ||
         typeof body.reply !== "string" || typeof body.idempotencyKey !== "string") {
       return NextResponse.json({ error: "Invalid reply payload" }, { status: 400 });
     }
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         { method: "PATCH", admin: true, prefer: "return=representation", body: { status: "processing", attempts: event.attempts + 1, last_error: null } },
       );
       event = rows[0] ?? event;
+      claimedEventId = event.id;
     } else {
       const rows = await supabaseRequest<EventRow[]>(
         "integration_events?select=id,status,attempts",

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { notFound } from "next/navigation";
 import { StorefrontActions, type StoreProduct } from "@/components/StorefrontActions";
 import { supabaseRequest } from "@/lib/supabase/rest";
@@ -78,6 +79,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ sl
 
   return (
     <main className="min-h-screen bg-gray-50 pb-32">
+      <Script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" strategy="afterInteractive" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-5 py-8">

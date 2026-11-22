@@ -54,3 +54,20 @@ test("Supabase Edge Function is configured as an authenticated server-to-server 
   assert.match(fn, /integration_events/);
   assert.match(fn, /N8N_WEBHOOK_BASE_URL/);
 });
+
+test("tenant storage is public-read but owner/admin-write only", () => {
+  assert.match(migration, /insert into storage\.buckets/);
+  assert.match(migration, /tenant_assets_public_read/);
+  assert.match(migration, /tenant_assets_admin_insert/);
+  assert.match(migration, /tenant_assets_admin_update/);
+  assert.match(migration, /tenant_assets_admin_delete/);
+});
+
+test("merchant opening hours are persisted and formatted for automation", () => {
+  const form = fs.readFileSync("app/dashboard/comercio/CommerceForm.tsx", "utf8");
+  const helper = fs.readFileSync("lib/commerce/opening-hours.ts", "utf8");
+  const internal = fs.readFileSync("app/api/internal/tenants/[id]/public-data/route.ts", "utf8");
+  assert.match(form, /opening_hours: openingHours/);
+  assert.match(helper, /formatOpeningHoursText/);
+  assert.match(internal, /openingHoursText: hours/);
+});

@@ -69,10 +69,12 @@ export async function POST(request: NextRequest) {
     const instanceToken = await readWhatsAppCredential(instance.id);
     if (!instanceToken) throw new Error("Encrypted Evolution instance token is unavailable");
 
+    const recipient = sender.split("@")[0].replace(/\D/g, "");
+    if (recipient.length < 10) throw new Error("Invalid WhatsApp recipient");
     const response = await fetch(baseUrl.replace(/\/$/, "") + "/message/sendText/" + encodeURIComponent(instance.instance_name), {
       method: "POST",
       headers: { apikey: instanceToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ number: sender, text: body.reply.slice(0, 4000) }),
+      body: JSON.stringify({ number: recipient, text: body.reply.slice(0, 4000) }),
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
     });

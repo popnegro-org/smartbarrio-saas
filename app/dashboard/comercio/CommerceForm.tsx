@@ -16,7 +16,7 @@ export function CommerceForm({ tenant }: { tenant: Tenant }) {
     whatsapp_number: tenant.whatsapp_number ?? "", address: tenant.address ?? "",
     city: tenant.city ?? "", province: tenant.province ?? "Mendoza",
     instagram_url: tenant.instagram_url ?? "", google_review_url: tenant.google_review_url ?? "",
-    is_published: tenant.is_published,
+    logo_url: tenant.logo_url ?? "", is_published: tenant.is_published,
   });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);

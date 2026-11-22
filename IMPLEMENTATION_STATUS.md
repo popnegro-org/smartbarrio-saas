@@ -5,10 +5,13 @@
 SmartBarrio es un PMV SaaS multitenant para comercios de barrio en Argentina.
 
 - Next.js App Router, TypeScript y Tailwind.
-- Supabase Auth, PostgreSQL y políticas RLS.
+- Supabase Auth, PostgreSQL, políticas RLS y Storage con bucket público tenant-assets y carga de logos restringida por tenant.
+- Supabase Edge Function dispatch-offer con autenticación de servidor e idempotencia; activación opcional mediante SUPABASE_FUNCTIONS_ENABLED.
 - Registro, onboarding, alta/publicación de comercios y selector de tenant.
 - Dashboard para perfil comercial, catálogo, ofertas e integraciones.
-- Landing pública por slug, SEO local, carrito y pedidos por WhatsApp.
+- Landing pública por slug, SEO local, JSON-LD LocalBusiness, horarios, carrito y pedidos por WhatsApp.
+- Manifiesto PWA dinámico por comercio para que la instalación abra la landing correcta.
+- Gestión de horarios por día y sincronización con Google Business Profile; fallback de copiar/publicar.
 - PWA con manifest, icono e instrucciones de instalación para iOS.
 - OneSignal Web Push segmentado por tenant_id.
 - Evolution API: instancia por comercio, QR, webhooks y envío de mensajes/Estados.
@@ -28,7 +31,7 @@ Requiere Node.js 22 o superior.
     npm run build
     npm audit --audit-level=high
 
-El workflow Browser QA ejecuta además Playwright funcional y accesibilidad. Lighthouse CI y CodeQL se ejecutan sobre la rama candidata.
+El workflow Browser QA ejecuta lint, typecheck, pruebas unitarias, validación Docker Compose, Playwright funcional y accesibilidad. También valida la Edge Function con Deno. Lighthouse CI y CodeQL se ejecutan sobre la rama candidata.
 
 ## Dependencias de seguridad
 
@@ -65,15 +68,24 @@ Importar manualmente:
 
 Los workflows quedan active=false. Configurar credenciales/variables, validar los webhooks y activar cada workflow desde n8n después de las pruebas de integración.
 
+Después de restaurar y enlazar el proyecto Supabase, aplicar la migración y desplegar la función:
+
+    supabase db push
+    supabase secrets set AUTOMATION_SECRET=... N8N_WEBHOOK_BASE_URL=...
+    supabase functions deploy dispatch-offer
+
+Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verificar la función. Si permanece false, Next.js envía directamente al webhook n8n.
+
 ## Estado de infraestructura
 
 **No desplegar ni aplicar la migración hasta resolver estos bloqueos:**
 
-1. El proyecto Supabase conectado (rpopiqeulnxbsclvvfuf) figura INACTIVE. La migración supabase/migrations/20261122170000_multitenant_saas.sql todavía no fue aplicada. Restaurarlo puede implicar consumo/costos; requiere decisión del propietario.
+1. El proyecto Supabase conectado (rpopiqeulnxbsclvvfuf) figura INACTIVE. La migración supabase/migrations/20261122170000_multitenant_saas.sql todavía no fue aplicada. Restaurarlo puede implicar consumo/costos; requiere decisión del propietario. La función Edge y el bucket Storage tampoco están desplegados.
 2. El proyecto Vercel smartbarrio-saas no tiene configuradas las variables Supabase requeridas para la rama candidata. No se generó un Preview de esta versión.
 3. OAuth de Meta y Google requiere credenciales reales, URLs de callback registradas, APIs habilitadas y permisos aprobados.
 4. Evolution API y n8n requieren un VPS, DNS y secretos reales. No se ejecutaron conexiones QR ni mensajes reales.
 5. OneSignal requiere una aplicación y dominios autorizados.
+6. La sincronización de horarios/ofertas, mensajes WhatsApp e Instagram aún no se validó contra cuentas reales.
 
 ## Seguridad de despliegue
 

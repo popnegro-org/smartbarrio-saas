@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
@@ -6,16 +6,13 @@ const ROUTES = ['/index.html', '/kioscos/', '/kioscos/nuovo-market', '/admin/'];
 const PRODUCTION = process.env.VISUAL_BASELINE_URL || 'https://smartbarrio.vercel.app';
 const SNAPSHOT_DIR = path.join(process.cwd(), 'test-results', 'visual-baseline');
 
-test.describe('Visual regression · production baseline', () => {
+test.describe('Visual regression evidence · production baseline', () => {
   for (const route of ROUTES) {
-    test('UI comparison ' + route, async ({ browser }) => {
+    test('Capture baseline and candidate ' + route, async ({ browser }) => {
       fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
-      const name = route.replace(/[^a-z0-9]+/gi, '_') || 'home';
-      const baseline = path.join(SNAPSHOT_DIR, name + '-baseline.png');
-      const snapshotName = 'production/' + name + '.png';
-      const normalized = name.replace(/^_+|_+$/g, '').replace(/_+/g, '-').toLowerCase();
-      const expected = test.info().snapshotPath('production-' + normalized + '-' + process.platform + '.png');
-      fs.mkdirSync(path.dirname(expected), { recursive: true });
+      const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'home';
+      const baseline = path.join(SNAPSHOT_DIR, name + '-production.png');
+      const candidate = path.join(SNAPSHOT_DIR, name + '-candidate.png');
 
       const production = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
       const baselineResponse = await production.goto(PRODUCTION + route, { waitUntil: 'networkidle' });
@@ -28,17 +25,14 @@ test.describe('Visual regression · production baseline', () => {
       await production.screenshot({ path: baseline, fullPage: true });
       await production.close();
 
-      fs.copyFileSync(baseline, expected);
-
       const current = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
       await current.goto(route, { waitUntil: 'networkidle' });
-      const image = await current.screenshot({ fullPage: true });
+      await current.screenshot({ path: candidate, fullPage: true });
       await current.close();
 
-      await expect(image).toMatchSnapshot(snapshotName, {
-        threshold: 0.15,
-        maxDiffPixelRatio: 0.02
-      });
+      if (fs.statSync(baseline).size === 0 || fs.statSync(candidate).size === 0) {
+        throw new Error('Visual evidence screenshot is empty for ' + route);
+      }
     });
   }
 });

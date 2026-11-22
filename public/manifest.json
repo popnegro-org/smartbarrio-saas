@@ -1,0 +1,17 @@
+{
+  "name": "SmartBarrio - Comercios locales",
+  "short_name": "SmartBarrio",
+  "description": "Productos, servicios y ofertas de tu comercio de confianza.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#009966",
+  "icons": [
+    {
+      "src": "/icons/smartbarrio.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

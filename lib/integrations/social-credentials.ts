@@ -13,6 +13,14 @@ export async function storeSocialCredentials(
   accessToken: string,
   refreshToken: string | null,
 ) {
+  const existing = await supabaseRequest<CredentialRow[]>(
+    "social_credentials?select=refresh_token_ciphertext&integration_id=eq." + integrationId + "&limit=1",
+    { admin: true },
+  );
+  const refreshCiphertext = refreshToken
+    ? encryptToken(refreshToken, "social:" + integrationId + ":refresh")
+    : existing[0]?.refresh_token_ciphertext ?? null;
+
   await supabaseRequest("social_credentials?on_conflict=integration_id", {
     method: "POST",
     admin: true,
@@ -20,7 +28,7 @@ export async function storeSocialCredentials(
     body: [{
       integration_id: integrationId,
       access_token_ciphertext: encryptToken(accessToken, "social:" + integrationId + ":access"),
-      refresh_token_ciphertext: refreshToken ? encryptToken(refreshToken, "social:" + integrationId + ":refresh") : null,
+      refresh_token_ciphertext: refreshCiphertext,
       encryption_key_version: TOKEN_ENCRYPTION_KEY_VERSION,
       updated_at: new Date().toISOString(),
     }],

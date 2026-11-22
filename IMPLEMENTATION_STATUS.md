@@ -76,16 +76,18 @@ Después de restaurar y enlazar el proyecto Supabase, aplicar la migración y de
 
 Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verificar la función. Si permanece false, Next.js envía directamente al webhook n8n.
 
-## Estado de infraestructura
+## Estado de infraestructura — verificado 22/11/2026
 
-**No desplegar ni aplicar la migración hasta resolver estos bloqueos:**
-
-1. El proyecto Supabase conectado (rpopiqeulnxbsclvvfuf) estaba INACTIVE. Se solicitó su restauración el 22/11/2026 y el último estado observado fue COMING_UP. No se aplicó la migración supabase/migrations/20261122170000_multitenant_saas.sql porque el proyecto todavía no figura ACTIVE_HEALTHY. La función Edge y el bucket Storage tampoco están desplegados.
-2. En Vercel smartbarrio-saas se configuraron NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY únicamente para Preview y exclusivamente para feat/multitenant-saas-foundation. No se modificó Production. El deployment candidato del commit 9856f106a8fade5bf24d70a651cba30ed3496a12 fue creado y su último estado observado fue BUILDING. La configuración server-side SUPABASE_SERVICE_ROLE_KEY sigue pendiente.
-3. OAuth de Meta y Google requiere credenciales reales, URLs de callback registradas, APIs habilitadas y permisos aprobados.
-4. Evolution API y n8n requieren un VPS, DNS y secretos reales. No se ejecutaron conexiones QR ni mensajes reales.
-5. OneSignal requiere una aplicación y dominios autorizados.
-6. La sincronización de horarios/ofertas, mensajes WhatsApp e Instagram aún no se validó contra cuentas reales.
+- Supabase `rpopiqeulnxbsclvvfuf` está `ACTIVE_HEALTHY` (PostgreSQL 17.11, región `sa-east-1`).
+- Migración `20261122170000_multitenant_saas.sql` aplicada correctamente. Supabase registra la versión `20261122224249` con nombre `20261122170000_multitenant_saas`.
+- Verificación posterior: 10 tablas del modelo multitenant presentes, todas con RLS habilitado; 21 políticas esperadas verificadas entre tablas públicas y Storage; bucket `tenant-assets` presente; RPC `public.create_tenant` y helper `private.has_tenant_role` presentes.
+- Las tablas de credenciales `social_credentials` y `whatsapp_credentials` permanecen deliberadamente sin políticas de usuario: RLS habilitado y privilegios únicamente para `service_role`. No habilitar acceso desde clientes.
+- Los avisos informativos RLS sin políticas en `leads` y `sales_inquiries` son tablas preexistentes de recepción de consultas; mantenerlas cerradas a acceso directo y usar su flujo server-side existente. No agregar políticas públicas genéricas.
+- Security Advisor: sin hallazgos de seguridad adicionales. Los avisos de RLS en las tablas de credenciales son intencionales por su aislamiento server-only.
+- Edge Function `smartbarrio-submit`: activa (versión 3). `dispatch-offer`: todavía no desplegada.
+- Vercel: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` configuradas solo para Preview y la rama candidata. No se modificó Production.
+- Bloqueo: `SUPABASE_SERVICE_ROLE_KEY`, `AUTOMATION_SECRET`, `N8N_WEBHOOK_BASE_URL` y credenciales de proveedores no están disponibles para configurar/verificar el flujo server-side. No se generaron ni inventaron secretos.
+- Preview candidato: deployment READY en https://smartbarrio-saas-f6wka7p9b-popnegros-projects.vercel.app, commit `9856f106a8fade5bf24d70a651cba30ed3496a12`. Este deployment precede a la aplicación de la migración y debe reconstruirse para validar el flujo conectado a Supabase.
 
 ## Correcciones de seguridad y QA — 22/11/2026
 

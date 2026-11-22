@@ -11,7 +11,7 @@ test("multitenant migration defines required tenant resources", () => {
 });
 
 test("tenant-owned public tables have RLS enabled", () => {
-  for (const table of ["tenants", "tenant_members", "products_services", "offers", "whatsapp_instances", "push_subscribers", "social_integrations", "integration_events"]) {
+  for (const table of ["tenants", "tenant_members", "products_services", "offers", "whatsapp_instances", "push_subscribers", "social_integrations", "social_credentials", "whatsapp_credentials", "integration_events"]) {
     assert.match(migration, new RegExp("alter table public\\." + table + " enable row level security"));
   }
   assert.match(migration, /private\.create_tenant/);

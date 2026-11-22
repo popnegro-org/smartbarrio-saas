@@ -25,7 +25,7 @@ export default async function manifest({
     background_color: "#ffffff",
     theme_color: "#009966",
     icons: [
-      { src: "/icons/smartbarrio.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+      { src: "/icons/smartbarrio.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],
   };
 }

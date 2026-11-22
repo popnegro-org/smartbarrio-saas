@@ -71,3 +71,17 @@ test("merchant opening hours are persisted and formatted for automation", () => 
   assert.match(helper, /formatOpeningHoursText/);
   assert.match(internal, /openingHoursText: hours/);
 });
+
+test("Google Business hours synchronization has a manual fallback", () => {
+  const route = fs.readFileSync("app/api/integrations/google/sync-hours/route.ts", "utf8");
+  assert.match(route, /mybusinessbusinessinformation\.googleapis\.com\/v1\/locations/);
+  assert.match(route, /updateMask=regularHours/);
+  assert.match(route, /mode: "manual"/);
+  assert.match(route, /getGoogleAccessToken/);
+});
+
+test("each merchant PWA opens its own storefront", () => {
+  const manifest = fs.readFileSync("app/[slug]/manifest.ts", "utf8");
+  assert.match(manifest, /start_url: "\/" \+ slug/);
+  assert.match(manifest, /scope: "\/"/);
+});

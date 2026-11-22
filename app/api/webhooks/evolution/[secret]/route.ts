@@ -35,9 +35,7 @@ export async function POST(
   context: { params: Promise<{ secret: string }> },
 ) {
   const { secret } = await context.params;
-  const headerSecret = request.headers.get("x-evolution-webhook-secret") ?? "";
-  if (!validSecret(secret, process.env.EVOLUTION_WEBHOOK_SECRET) ||
-      !validSecret(headerSecret, process.env.EVOLUTION_WEBHOOK_SECRET)) {
+  if (!validSecret(secret, process.env.EVOLUTION_WEBHOOK_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

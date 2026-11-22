@@ -166,6 +166,105 @@
           "timeout": 20000
         }
       }
+    },
+    {
+      "id": "if-push",
+      "name": "¿Push habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-push-condition",
+              "leftValue": "={{ $json.channels.push }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "if-whatsapp",
+      "name": "¿WhatsApp habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-whatsapp-condition",
+              "leftValue": "={{ $json.channels.whatsapp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "if-google",
+      "name": "¿Google habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        520
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-google-condition",
+              "leftValue": "={{ $json.channels.google }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
     }
   ],
   "connections": {
@@ -195,21 +294,57 @@
       "main": [
         [
           {
-            "node": "OneSignal push",
+            "node": "¿Push habilitado?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Evolution WhatsApp Status",
+            "node": "¿WhatsApp habilitado?",
             "type": "main",
             "index": 0
           },
+          {
+            "node": "¿Google habilitado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Push habilitado?": {
+      "main": [
+        [
+          {
+            "node": "OneSignal push",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿WhatsApp habilitado?": {
+      "main": [
+        [
+          {
+            "node": "Evolution WhatsApp Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿Google habilitado?": {
+      "main": [
+        [
           {
             "node": "Google Business post",
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     }
   },

@@ -31,6 +31,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Pin patched PostCSS override
+        run: npm pkg set 'overrides.postcss=8.5.33'
+
       - name: Upgrade patched Next.js and React releases
         run: npm install --save-exact next@15.5.29 react@19.1.10 react-dom@19.1.10
 

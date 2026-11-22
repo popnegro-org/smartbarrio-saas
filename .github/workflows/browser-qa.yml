@@ -121,7 +121,7 @@ jobs:
           done
           cat /tmp/smartbarrio-next.log
           exit 1
-      - name: Compare UI with production
+      - name: Capture visual evidence (production and candidate)
         run: npx playwright test tests/qa/visual-regression.spec.js
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000

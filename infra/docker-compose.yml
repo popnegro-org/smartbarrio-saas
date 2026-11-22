@@ -65,7 +65,7 @@ services:
       TZ: America/Argentina/Mendoza
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n/workflows:/workflows:ro
+      - ../n8n/workflows:/workflows:ro
     expose: ["5678"]
     networks: [backend]
 

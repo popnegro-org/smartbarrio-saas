@@ -1,8 +1,10 @@
+import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { readWhatsAppCredential, storeWhatsAppCredential } from "@/lib/integrations/whatsapp-credentials";
 import { getSupabaseUser, supabaseRequest } from "@/lib/supabase/rest";
 
 type Membership = { role: string };
-type Instance = { instance_name: string; connection_status: string; phone_number: string | null };
+type Instance = { id: string; instance_name: string; connection_status: string; phone_number: string | null };
 type EvolutionResult = { qrcode?: { base64?: string; code?: string }; base64?: string; code?: string };
 
 export const runtime = "nodejs";
@@ -31,10 +33,12 @@ function evolutionConfig() {
   return { baseUrl: baseUrl.replace(/\/$/, ""), apiKey, webhookSecret, appUrl: appUrl.replace(/\/$/, "") };
 }
 
-async function getQr(instanceName: string): Promise<EvolutionResult> {
-  const { baseUrl, apiKey } = evolutionConfig();
-  const response = await fetch(baseUrl + "/instance/connect/" + encodeURIComponent(instanceName), {
-    headers: { apikey: apiKey }, cache: "no-store", signal: AbortSignal.timeout(15000),
+async function getQr(instance: Instance): Promise<EvolutionResult> {
+  const { baseUrl } = evolutionConfig();
+  const instanceToken = await readWhatsAppCredential(instance.id);
+  if (!instanceToken) throw new Error("Encrypted Evolution instance token is unavailable");
+  const response = await fetch(baseUrl + "/instance/connect/" + encodeURIComponent(instance.instance_name), {
+    headers: { apikey: instanceToken }, cache: "no-store", signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) throw new Error("Evolution QR request failed with HTTP " + response.status);
   return (await response.json()) as EvolutionResult;
@@ -50,14 +54,14 @@ export async function POST(request: NextRequest) {
 
     const config = evolutionConfig();
     const existing = await supabaseRequest<Instance[]>(
-      "whatsapp_instances?select=instance_name,connection_status,phone_number&tenant_id=eq." + tenantId + "&limit=1",
+      "whatsapp_instances?select=id,instance_name,connection_status,phone_number&tenant_id=eq." + tenantId + "&limit=1",
       { admin: true },
     );
     if (existing[0]) {
       if (existing[0].connection_status === "connected") {
         return NextResponse.json({ status: "connected", phoneNumber: existing[0].phone_number });
       }
-      const qr = await getQr(existing[0].instance_name);
+      const qr = await getQr(existing[0]);
       return NextResponse.json({
         status: existing[0].connection_status,
         instanceName: existing[0].instance_name,
@@ -65,11 +69,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const instanceName = "sb-" + tenantId.replace(/-/g, "").slice(0, 12);
-    await supabaseRequest("whatsapp_instances", {
-      method: "POST", admin: true, prefer: "return=minimal",
+    const instanceName = "sb" + tenantId.replace(/-/g, "").slice(0, 12);
+    const instanceToken = randomBytes(32).toString("hex");
+    const inserted = await supabaseRequest<Instance[]>("whatsapp_instances?select=id,instance_name,connection_status,phone_number", {
+      method: "POST", admin: true, prefer: "return=representation",
       body: [{ tenant_id: tenantId, instance_name: instanceName, connection_status: "creating" }],
     });
+    const instance = inserted[0];
+    if (!instance) throw new Error("Could not persist WhatsApp instance");
+    await storeWhatsAppCredential(instance.id, instanceToken);
 
     const webhookUrl = config.appUrl + "/api/webhooks/evolution/" + config.webhookSecret;
     const created = await fetch(config.baseUrl + "/instance/create", {
@@ -77,11 +85,16 @@ export async function POST(request: NextRequest) {
       headers: { apikey: config.apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         instanceName,
+        token: instanceToken,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS",
-        webhook: webhookUrl,
-        webhookByEvents: false,
-        events: ["QRCODE_UPDATED", "CONNECTION_UPDATE", "MESSAGES_UPSERT"],
+        webhook: {
+          url: webhookUrl,
+          byEvents: false,
+          base64: false,
+          headers: { "x-evolution-webhook-secret": config.webhookSecret },
+          events: ["QRCODE_UPDATED", "CONNECTION_UPDATE", "MESSAGES_UPSERT"],
+        },
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(25000),
@@ -105,7 +118,7 @@ export async function POST(request: NextRequest) {
     let qr = result.qrcode?.base64 ?? result.base64 ?? null;
     if (!qr) {
       try {
-        const refreshed = await getQr(instanceName);
+        const refreshed = await getQr(instance);
         qr = refreshed.base64 ?? refreshed.qrcode?.base64 ?? null;
       } catch { /* The connection webhook will update the state if QR generation is delayed. */ }
     }
@@ -124,7 +137,7 @@ export async function GET(request: NextRequest) {
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const rows = await supabaseRequest<Instance[]>(
-      "whatsapp_instances?select=instance_name,connection_status,phone_number&tenant_id=eq." + tenantId + "&limit=1",
+      "whatsapp_instances?select=id,instance_name,connection_status,phone_number&tenant_id=eq." + tenantId + "&limit=1",
       { admin: true },
     );
     const instance = rows[0];
@@ -132,7 +145,7 @@ export async function GET(request: NextRequest) {
     if (instance.connection_status === "connected") {
       return NextResponse.json({ status: "connected", phoneNumber: instance.phone_number });
     }
-    const qr = await getQr(instance.instance_name);
+    const qr = await getQr(instance);
     return NextResponse.json({
       status: instance.connection_status,
       instanceName: instance.instance_name,

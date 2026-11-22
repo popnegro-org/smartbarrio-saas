@@ -30,6 +30,12 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
+
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example infra/.env
+          docker compose -f infra/docker-compose.yml config --quiet
+          rm infra/.env
       - name: Install Playwright
         run: npm install --no-save @playwright/test
       - name: Install Chromium

@@ -20,6 +20,7 @@ function manual(text: string, reason: string) {
 }
 
 export async function POST(request: NextRequest) {
+  let fallbackText = "Consultá con el comercio";
   const token = request.cookies.get("sb-access-token")?.value;
   if (!token || !(await getSupabaseUser(token))) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
     if (!tenants[0]) return NextResponse.json({ error: "Comercio no encontrado" }, { status: 404 });
     const hours = normalizeOpeningHours(tenants[0].opening_hours);
     const text = formatOpeningHoursText(hours);
+    fallbackText = text;
     const periods = DAYS.flatMap((day) => {
       const item = hours[day];
       if (item.closed || item.open >= item.close) return [];
@@ -88,6 +90,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ mode: "synced", message: "Horarios sincronizados con Google Business Profile." });
   } catch (error) {
     console.error("Google hours sync failed", error);
-    return manual("No se pudieron preparar los horarios. Revisá la configuración del comercio.", "sync_error");
+    return manual(fallbackText, "sync_error");
   }
 }

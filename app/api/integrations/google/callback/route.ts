@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       method: "POST", admin: true, prefer: "resolution=merge-duplicates,return=representation",
       body: [{
         tenant_id: state.tenantId, provider: "google_business", status: "connected",
-        external_account_id: location.name, account_name: location.title ?? accountLabel,
+        external_account_id: accountLabel.startsWith("accounts/") ? accountLabel + "/" + location.name : accounts.find((item) => item.accountName === accountLabel)?.name + "/" + location.name, account_name: location.title ?? accountLabel,
         scopes: (tokens.scope ?? "https://www.googleapis.com/auth/business.manage").split(" "),
         token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
         last_error: null,

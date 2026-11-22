@@ -92,7 +92,7 @@ create table if not exists public.social_integrations (
 );
 
 -- OAuth credentials are isolated from the exposed public schema and encrypted server-side.
-create table if not exists private.social_credentials (
+create table if not exists public.social_credentials (
   integration_id uuid primary key references public.social_integrations(id) on delete cascade,
   access_token_ciphertext text not null, refresh_token_ciphertext text,
   encryption_key_version text not null, updated_at timestamptz not null default now()
@@ -182,7 +182,8 @@ alter table public.whatsapp_instances enable row level security;
 alter table public.push_subscribers enable row level security;
 alter table public.social_integrations enable row level security;
 alter table public.integration_events enable row level security;
-alter table private.social_credentials enable row level security;
+alter table public.social_credentials enable row level security;
+revoke all on public.social_credentials from public, anon, authenticated;
 
 create policy tenants_read_published_or_member on public.tenants for select to anon, authenticated
 using (is_published or private.has_tenant_role(id, array['owner','admin','editor','viewer']));
@@ -247,62 +248,14 @@ grant insert on public.push_subscribers to anon, authenticated;
 grant all on public.tenants, public.tenant_members, public.products_services, public.offers,
   public.whatsapp_instances, public.push_subscribers, public.social_integrations,
   public.integration_events to service_role;
-grant all on private.social_credentials to service_role;
+grant all on public.social_credentials to service_role;
 
-comment on table private.social_credentials is
+comment on table public.social_credentials is
   'Server-only AES-256-GCM encrypted OAuth credentials. Never expose through the Supabase Data API.';
 comment on function private.create_tenant(text,text,text) is
   'Atomically creates a tenant and its owner membership for the authenticated user.';
 
--- Trusted server-only RPCs for the encrypted OAuth credential vault.
-create or replace function public.store_social_credentials(
-  p_integration_id uuid,
-  p_access_token_ciphertext text,
-  p_refresh_token_ciphertext text,
-  p_encryption_key_version text
-)
-returns void
-language plpgsql
-security definer
-set search_path = ''
-as $store_credentials$
-begin
-  if p_access_token_ciphertext is null or char_length(p_access_token_ciphertext) < 32
-     or p_encryption_key_version is null or char_length(p_encryption_key_version) > 32 then
-    raise exception 'Invalid encrypted credential payload' using errcode = '22023';
-  end if;
-  insert into private.social_credentials as current_credentials(
-    integration_id, access_token_ciphertext, refresh_token_ciphertext, encryption_key_version, updated_at
-  )
-  values (
-    p_integration_id, p_access_token_ciphertext, p_refresh_token_ciphertext, p_encryption_key_version, now()
-  )
-  on conflict (integration_id) do update set
-    access_token_ciphertext = excluded.access_token_ciphertext,
-    refresh_token_ciphertext = coalesce(excluded.refresh_token_ciphertext, current_credentials.refresh_token_ciphertext),
-    encryption_key_version = excluded.encryption_key_version,
-    updated_at = now();
-end;
-$store_credentials$;
-
-create or replace function public.read_social_credentials(p_integration_id uuid)
-returns table (
-  access_token_ciphertext text,
-  refresh_token_ciphertext text,
-  encryption_key_version text
-)
-language sql
-security definer
-set search_path = ''
-as $read_credentials$
-  select c.access_token_ciphertext, c.refresh_token_ciphertext, c.encryption_key_version
-  from private.social_credentials c
-  where c.integration_id = p_integration_id;
-$read_credentials$;
-
-revoke all on function public.store_social_credentials(uuid,text,text,text) from public, anon, authenticated;
-revoke all on function public.read_social_credentials(uuid) from public, anon, authenticated;
-grant execute on function public.store_social_credentials(uuid,text,text,text) to service_role;
-grant execute on function public.read_social_credentials(uuid) to service_role;
+comment on table public.social_credentials is
+  'Server-only AES-256-GCM encrypted OAuth credentials. RLS enabled; only service_role receives table grants.';
 
 commit;

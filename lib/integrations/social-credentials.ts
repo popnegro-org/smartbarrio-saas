@@ -2,6 +2,7 @@ import { decryptToken, encryptToken, TOKEN_ENCRYPTION_KEY_VERSION } from "@/lib/
 import { supabaseRequest } from "@/lib/supabase/rest";
 
 type CredentialRow = {
+  integration_id: string;
   access_token_ciphertext: string;
   refresh_token_ciphertext: string | null;
   encryption_key_version: string;
@@ -12,24 +13,26 @@ export async function storeSocialCredentials(
   accessToken: string,
   refreshToken: string | null,
 ) {
-  await supabaseRequest("rpc/store_social_credentials", {
+  await supabaseRequest("social_credentials?on_conflict=integration_id", {
     method: "POST",
     admin: true,
-    body: {
-      p_integration_id: integrationId,
-      p_access_token_ciphertext: encryptToken(accessToken),
-      p_refresh_token_ciphertext: refreshToken ? encryptToken(refreshToken) : null,
-      p_encryption_key_version: TOKEN_ENCRYPTION_KEY_VERSION,
-    },
+    prefer: "resolution=merge-duplicates,return=minimal",
+    body: [{
+      integration_id: integrationId,
+      access_token_ciphertext: encryptToken(accessToken),
+      refresh_token_ciphertext: refreshToken ? encryptToken(refreshToken) : null,
+      encryption_key_version: TOKEN_ENCRYPTION_KEY_VERSION,
+      updated_at: new Date().toISOString(),
+    }],
   });
 }
 
 export async function readSocialCredentials(integrationId: string) {
-  const rows = await supabaseRequest<CredentialRow[]>("rpc/read_social_credentials", {
-    method: "POST",
-    admin: true,
-    body: { p_integration_id: integrationId },
-  });
+  const rows = await supabaseRequest<CredentialRow[]>(
+    "social_credentials?select=integration_id,access_token_ciphertext,refresh_token_ciphertext,encryption_key_version&integration_id=eq." +
+      integrationId + "&limit=1",
+    { admin: true },
+  );
   const row = rows[0];
   if (!row) return null;
   return {

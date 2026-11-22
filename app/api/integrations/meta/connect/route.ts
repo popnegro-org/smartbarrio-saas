@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   url.searchParams.set("client_id", appId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement");
+  url.searchParams.set("scope", "instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement,pages_manage_metadata");
   url.searchParams.set("state", state);
   return NextResponse.redirect(url);
 }

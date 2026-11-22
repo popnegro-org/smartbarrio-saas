@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = (await request.json()) as { tenantId?: unknown; offerId?: unknown; eventId?: unknown };
-    if (typeof body.tenantId !== "string" || typeof body.offerId !== "string" || typeof body.eventId !== "string") {
+    if (typeof body.tenantId !== "string" || typeof body.offerId !== "string" || typeof body.eventId !== "string" ||
+        !/^[0-9a-f-]{36}$/i.test(body.tenantId) || !/^[0-9a-f-]{36}$/i.test(body.offerId)) {
       return NextResponse.json({ error: "Invalid event" }, { status: 400 });
     }
 

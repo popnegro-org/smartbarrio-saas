@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   if (!isInternalRequest(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let claimedEventId: string | null = null;
   try {
     const body = (await request.json()) as {
       tenantId?: unknown; channel?: unknown; sender?: unknown; reply?: unknown; idempotencyKey?: unknown;
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
         },
       );
       event = rows[0];
+      claimedEventId = event?.id ?? null;
       if (!event) return NextResponse.json({ accepted: true, duplicate: true }, { status: 202 });
     }
 
@@ -79,6 +81,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("WhatsApp auto-reply failed", error);
+    if (claimedEventId) {
+      await supabaseRequest("integration_events?id=eq." + claimedEventId, {
+        method: "PATCH", admin: true, prefer: "return=minimal",
+        body: { status: "failed", last_error: "WhatsApp auto-reply failed", next_retry_at: new Date(Date.now() + 60000).toISOString() },
+      }).catch(() => null);
+    }
     return NextResponse.json({ error: "WhatsApp auto-reply failed" }, { status: 502 });
   }
 }

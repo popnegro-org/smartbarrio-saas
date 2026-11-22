@@ -12,7 +12,8 @@ test.describe('Visual regression · production baseline', () => {
       fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
       const name = route.replace(/[^a-z0-9]+/gi, '_') || 'home';
       const baseline = path.join(SNAPSHOT_DIR, name + '-baseline.png');
-      const expected = test.info().snapshotPath('production', name + '.png');
+      const snapshotName = 'production/' + name + '.png';
+      const expected = test.info().snapshotPath(snapshotName);
       fs.mkdirSync(path.dirname(expected), { recursive: true });
 
       const production = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -27,7 +28,7 @@ test.describe('Visual regression · production baseline', () => {
       const image = await current.screenshot({ fullPage: true });
       await current.close();
 
-      await expect(image).toMatchSnapshot('production/' + name + '.png', {
+      await expect(image).toMatchSnapshot(snapshotName, {
         threshold: 0.15,
         maxDiffPixelRatio: 0.02
       });

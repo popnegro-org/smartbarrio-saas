@@ -26,6 +26,14 @@ jobs:
         run: npm ci
       - name: Lint source
         run: npm run lint
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck Supabase Edge Functions
+        run: deno check supabase/functions/dispatch-offer/index.ts
       - name: Typecheck
         run: npm run typecheck
       - name: Unit tests

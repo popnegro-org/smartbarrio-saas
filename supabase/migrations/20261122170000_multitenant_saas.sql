@@ -152,12 +152,12 @@ set search_path = ''
 as $create_tenant$
   select private.create_tenant(p_name, p_slug, p_business_type);
 $create_tenant$;
-revoke all on function public.create_tenant(text,text,text) from public, anon;
+revoke all on function public.create_tenant(text,text,text) from public, anon, authenticated;
 grant execute on function public.create_tenant(text,text,text) to authenticated;
 
-revoke all on function private.has_tenant_role(uuid,text[]) from public, anon;
+revoke all on function private.has_tenant_role(uuid,text[]) from public, anon, authenticated;
 grant execute on function private.has_tenant_role(uuid,text[]) to anon, authenticated;
-revoke all on function private.create_tenant(text,text,text) from public, anon;
+revoke all on function private.create_tenant(text,text,text) from public, anon, authenticated;
 grant execute on function private.create_tenant(text,text,text) to authenticated;
 
 do $$
@@ -242,7 +242,7 @@ grant select on public.tenants, public.products_services, public.offers to anon,
 grant select on public.tenant_members to anon;
 grant select on public.tenant_members, public.whatsapp_instances, public.push_subscribers,
   public.social_integrations, public.integration_events to authenticated;
-grant insert, update, delete on public.tenants to authenticated;
+grant update, delete on public.tenants to authenticated;
 grant insert, update, delete on public.products_services, public.offers to authenticated;
 grant insert on public.push_subscribers to anon, authenticated;
 grant all on public.tenants, public.tenant_members, public.products_services, public.offers,

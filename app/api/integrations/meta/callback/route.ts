@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       body: [{
         tenant_id: state.tenantId, provider: "instagram", status: "connected",
         external_account_id: instagram.id, account_name: instagram.username ?? page.name,
-        scopes: ["instagram_basic", "instagram_manage_messages", "pages_show_list", "pages_read_engagement"],
+        scopes: ["instagram_basic", "instagram_manage_messages", "pages_show_list", "pages_read_engagement", "pages_manage_metadata"],
         token_expires_at: longToken.expires_in ? new Date(Date.now() + longToken.expires_in * 1000).toISOString() : null,
         last_error: null,
       }],

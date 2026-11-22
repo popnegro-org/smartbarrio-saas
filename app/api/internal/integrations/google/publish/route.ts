@@ -20,6 +20,8 @@ async function updateEvent(id: string, values: Record<string, unknown>) {
 export async function POST(request: NextRequest) {
   if (!isInternalRequest(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let claimedEventId: string | null = null;
+  let fallbackText = "";
+  let fallbackUrl = "";
   try {
     const body = (await request.json()) as { tenantId?: unknown; offerId?: unknown; eventId?: unknown };
     if (typeof body.tenantId !== "string" || typeof body.offerId !== "string" ||
@@ -151,6 +153,12 @@ export async function POST(request: NextRequest) {
       status: "failed", last_error: "Google Business publication failed",
       next_retry_at: new Date(Date.now() + 60000).toISOString(),
     }).catch(() => null);
-    return NextResponse.json({ error: "Google Business dispatch failed" }, { status: 502 });
+    return NextResponse.json({
+      mode: "manual",
+      reason: "google_api_unavailable",
+      text: fallbackText,
+      landingUrl: fallbackUrl,
+      message: "La publicación automática no está disponible. Copiá el texto y publicalo desde Google Business Profile.",
+    });
   }
 }

@@ -65,7 +65,7 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
       {totalItems > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-white p-4 shadow-lg">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-            <div><p className="font-semibold">{totalItems} ítems</p><p className="text-sm text-gray-500">Total estimado: $${total.toLocaleString("es-AR")}</p></div>
+            <div><p className="font-semibold">{totalItems} ítems</p><p className="text-sm text-gray-500">Total estimado: ${total.toLocaleString("es-AR")}</p></div>
             <button type="button" onClick={order} disabled={!tenant.whatsapp_number} className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><MessageCircle size={18} /> Pedir por WhatsApp</button>
           </div>
         </div>

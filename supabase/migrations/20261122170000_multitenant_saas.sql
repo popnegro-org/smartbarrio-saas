@@ -4,7 +4,7 @@
 begin;
 create schema if not exists private;
 revoke all on schema private from public, anon;
-grant usage on schema private to authenticated, service_role;
+grant usage on schema private to anon, authenticated, service_role;
 
 create or replace function private.set_updated_at()
 returns trigger language plpgsql set search_path = ''
@@ -144,7 +144,7 @@ end;
 $$;
 
 revoke all on function private.has_tenant_role(uuid,text[]) from public, anon;
-grant execute on function private.has_tenant_role(uuid,text[]) to authenticated;
+grant execute on function private.has_tenant_role(uuid,text[]) to anon, authenticated;
 revoke all on function private.create_tenant(text,text,text) from public, anon;
 grant execute on function private.create_tenant(text,text,text) to authenticated;
 
@@ -180,7 +180,7 @@ with check (private.has_tenant_role(id, array['owner','admin']));
 create policy tenants_delete_owner on public.tenants for delete to authenticated
 using (private.has_tenant_role(id, array['owner']));
 
-create policy tenant_members_read_self on public.tenant_members for select to authenticated
+create policy tenant_members_read_self on public.tenant_members for select to anon, authenticated
 using (user_id = (select auth.uid()));
 
 create policy products_services_read_public_or_member on public.products_services for select to anon, authenticated
@@ -213,7 +213,10 @@ using (private.has_tenant_role(tenant_id, array['owner','admin']));
 create policy whatsapp_instances_read_member on public.whatsapp_instances for select to authenticated
 using (private.has_tenant_role(tenant_id, array['owner','admin','editor','viewer']));
 create policy push_subscribers_insert_public on public.push_subscribers for insert to anon, authenticated
-with check (exists (select 1 from public.tenants t where t.id = tenant_id and t.is_published));
+with check (
+  (user_id is null or user_id = (select auth.uid()))
+  and exists (select 1 from public.tenants t where t.id = tenant_id and t.is_published)
+);
 create policy push_subscribers_read_admin on public.push_subscribers for select to authenticated
 using (private.has_tenant_role(tenant_id, array['owner','admin']));
 create policy social_integrations_read_admin on public.social_integrations for select to authenticated
@@ -223,6 +226,7 @@ using (private.has_tenant_role(tenant_id, array['owner','admin']));
 
 grant usage on schema public to anon, authenticated;
 grant select on public.tenants, public.products_services, public.offers to anon, authenticated;
+grant select on public.tenant_members to anon;
 grant select on public.tenant_members, public.whatsapp_instances, public.push_subscribers,
   public.social_integrations, public.integration_events to authenticated;
 grant insert, update, delete on public.tenants to authenticated;

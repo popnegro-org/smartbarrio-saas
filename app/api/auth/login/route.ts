@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/rest";
+import { isValidEmailAddress } from "@/lib/security/email-validation";
 
 export const runtime = "nodejs";
 
@@ -9,7 +10,7 @@ export async function POST(request: NextRequest) {
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) {
+    if (!isValidEmailAddress(email) || password.length < 8) {
       return NextResponse.json({ error: "Email o contraseña inválidos" }, { status: 400 });
     }
 

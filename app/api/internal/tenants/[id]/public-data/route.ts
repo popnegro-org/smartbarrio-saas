@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isInternalRequest } from "@/lib/integrations/internal-auth";
 import { supabaseRequest } from "@/lib/supabase/rest";
+import { formatOpeningHoursText } from "@/lib/commerce/opening-hours";
 
 type Tenant = { id: string; name: string; slug: string; is_published: boolean; opening_hours: Record<string, unknown> };
 type CatalogItem = { name: string; kind: string; price: number | null; is_available: boolean };
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     );
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
     const hours = tenant.opening_hours && Object.keys(tenant.opening_hours).length
-      ? JSON.stringify(tenant.opening_hours)
+      ? formatOpeningHoursText(tenant.opening_hours)
       : "Consultá con el comercio";
 
     return NextResponse.json({

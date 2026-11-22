@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { DAYS, DAY_LABELS, normalizeOpeningHours, type DayKey, type OpeningHours } from "@/lib/commerce/opening-hours";
 
 type Tenant = {
   id: string; name: string; description: string | null; phone: string | null; whatsapp_number: string | null;
   address: string | null; city: string | null; province: string | null; instagram_url: string | null;
-  google_review_url: string | null; logo_url: string | null; is_published: boolean;
+  google_review_url: string | null; logo_url: string | null; opening_hours: Record<string, unknown>; is_published: boolean;
 };
 
 export function CommerceForm({ tenant }: { tenant: Tenant }) {
@@ -18,12 +19,17 @@ export function CommerceForm({ tenant }: { tenant: Tenant }) {
     instagram_url: tenant.instagram_url ?? "", google_review_url: tenant.google_review_url ?? "",
     logo_url: tenant.logo_url ?? "", is_published: tenant.is_published,
   });
+  const [openingHours, setOpeningHours] = useState<OpeningHours>(() => normalizeOpeningHours(tenant.opening_hours));
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   function field(key: keyof typeof values, value: string | boolean) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateDay(day: DayKey, patch: Partial<OpeningHours[DayKey]>) {
+    setOpeningHours((current) => ({ ...current, [day]: { ...current[day], ...patch } }));
   }
 
   async function uploadLogo(file: File) {
@@ -51,7 +57,7 @@ export function CommerceForm({ tenant }: { tenant: Tenant }) {
     setMessage("");
     try {
       const response = await fetch("/api/tenants/" + tenant.id, {
-        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values),
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...values, opening_hours: openingHours }),
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "No se pudo guardar");
@@ -78,6 +84,22 @@ export function CommerceForm({ tenant }: { tenant: Tenant }) {
       <label className="block text-sm font-medium">Descripción
         <textarea rows={4} value={values.description} onChange={(e) => field("description", e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" />
       </label>
+      <section className="space-y-3 rounded-xl border p-4">
+        <div><h2 className="font-semibold">Horarios de atención</h2><p className="mt-1 text-xs text-gray-500">Configurá un rango horario por día. Marcá Cerrado cuando el local no atienda.</p></div>
+        {DAYS.map((day) => (
+          <div key={day} className="grid grid-cols-[1fr_auto] items-center gap-3 border-b pb-3 last:border-0 last:pb-0">
+            <span className="text-sm font-medium">{DAY_LABELS[day]}</span>
+            <div className="flex items-center gap-2">
+              {openingHours[day].closed ? <span className="text-sm text-gray-500">Cerrado</span> : <>
+                <input aria-label={DAY_LABELS[day] + " abre"} type="time" value={openingHours[day].open} onChange={(e) => updateDay(day, { open: e.target.value })} className="rounded-lg border px-2 py-1 text-sm" />
+                <span className="text-gray-400">a</span>
+                <input aria-label={DAY_LABELS[day] + " cierra"} type="time" value={openingHours[day].close} onChange={(e) => updateDay(day, { close: e.target.value })} className="rounded-lg border px-2 py-1 text-sm" />
+              </>}
+              <label className="ml-1 flex items-center gap-1 text-xs text-gray-600"><input type="checkbox" checked={openingHours[day].closed} onChange={(e) => updateDay(day, { closed: e.target.checked })} /> Cerrado</label>
+            </div>
+          </div>
+        ))}
+      </section>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={values.is_published} onChange={(e) => field("is_published", e.target.checked)} /> Publicar página</label>
       <label className="block text-sm font-medium">Logo del comercio
         <input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploadingLogo} onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadLogo(file); }} className="mt-1 block w-full text-sm" />

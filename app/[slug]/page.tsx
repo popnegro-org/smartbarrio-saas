@@ -3,6 +3,7 @@ import Script from "next/script";
 import { notFound } from "next/navigation";
 import { StorefrontActions, type StoreProduct } from "@/components/StorefrontActions";
 import { supabaseRequest } from "@/lib/supabase/rest";
+import { DAYS, DAY_LABELS, normalizeOpeningHours, toOpeningHoursSpecification } from "@/lib/commerce/opening-hours";
 
 type Tenant = {
   id: string; slug: string; name: string; description: string | null; business_type: string;
@@ -75,6 +76,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ sl
       addressCountry: "AR",
     },
     sameAs: [store.instagram_url].filter(Boolean),
+    openingHoursSpecification: toOpeningHoursSpecification(store.opening_hours),
   };
 
   return (
@@ -93,6 +95,15 @@ export default async function PublicStorePage({ params }: { params: Promise<{ sl
         </div>
       </header>
       <div className="mx-auto max-w-6xl px-5 py-8">
+        <section className="mb-10 rounded-xl border bg-white p-5">
+          <h2 className="font-semibold">Horarios de atención</h2>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            {DAYS.map((day) => {
+              const item = normalizeOpeningHours(store.opening_hours)[day];
+              return <p key={day} className="flex justify-between gap-3"><span className="text-gray-600">{DAY_LABELS[day]}</span><span className="font-medium">{item.closed ? "Cerrado" : item.open + "–" + item.close}</span></p>;
+            })}
+          </div>
+        </section>
         {activeOffers.length > 0 && (
           <section className="mb-10">
             <h2 className="mb-4 text-xl font-bold">Ofertas vigentes</h2>

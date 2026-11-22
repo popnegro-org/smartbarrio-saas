@@ -6,7 +6,7 @@ import { CommerceForm } from "./CommerceForm";
 type Tenant = {
   id: string; name: string; description: string | null; phone: string | null; whatsapp_number: string | null;
   address: string | null; city: string | null; province: string | null; instagram_url: string | null;
-  google_review_url: string | null; logo_url: string | null; is_published: boolean;
+  google_review_url: string | null; logo_url: string | null; opening_hours: Record<string, unknown>; is_published: boolean;
 };
 
 export default async function CommercePage() {
@@ -15,7 +15,7 @@ export default async function CommercePage() {
   const context = await getTenantContext(user.id, accessToken);
   if (!context) redirect("/dashboard/onboarding");
   const rows = await supabaseRequest<Tenant[]>(
-    "tenants?select=id,name,description,phone,whatsapp_number,address,city,province,instagram_url,google_review_url,logo_url,is_published&id=eq." + context.tenant.id + "&limit=1",
+    "tenants?select=id,name,description,phone,whatsapp_number,address,city,province,instagram_url,google_review_url,logo_url,opening_hours,is_published&id=eq." + context.tenant.id + "&limit=1",
     { token: accessToken },
   );
   if (!rows[0]) redirect("/dashboard/onboarding");

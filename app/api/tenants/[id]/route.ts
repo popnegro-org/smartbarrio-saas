@@ -9,11 +9,30 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
   try {
     const body = (await request.json()) as Record<string, unknown>;
-    const allowed = ["name", "description", "phone", "whatsapp_number", "address", "city", "province", "instagram_url", "google_review_url", "logo_url", "is_published"];
+    const allowed = ["name", "description", "phone", "whatsapp_number", "address", "city", "province", "instagram_url", "google_review_url", "logo_url", "opening_hours", "is_published"];
     const update: Record<string, unknown> = {};
     for (const key of allowed) if (body[key] !== undefined) update[key] = body[key];
     if (typeof update.name === "string" && (update.name.trim().length < 2 || update.name.trim().length > 120)) {
       return NextResponse.json({ error: "Nombre comercial inválido" }, { status: 400 });
+    }
+    if (update.opening_hours !== undefined) {
+      if (!update.opening_hours || typeof update.opening_hours !== "object" || Array.isArray(update.opening_hours)) {
+        return NextResponse.json({ error: "Horarios inválidos" }, { status: 400 });
+      }
+      const hours = update.opening_hours as Record<string, unknown>;
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      for (const day of days) {
+        const item = hours[day];
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          return NextResponse.json({ error: "Faltan horarios para " + day }, { status: 400 });
+        }
+        const schedule = item as Record<string, unknown>;
+        const validTime = (value: unknown) => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+        if (typeof schedule.closed !== "boolean" || !validTime(schedule.open) || !validTime(schedule.close) ||
+            (!schedule.closed && schedule.open >= schedule.close)) {
+          return NextResponse.json({ error: "Rango horario inválido para " + day }, { status: 400 });
+        }
+      }
     }
     for (const key of ["instagram_url", "google_review_url"]) {
       const value = update[key];

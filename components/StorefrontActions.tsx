@@ -28,6 +28,7 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
   const [cart, setCart] = useState<Record<string, number>>({});
   const [pushLoading, setPushLoading] = useState(false);
   const [pushMessage, setPushMessage] = useState("");
+  const [showIosGuide, setShowIosGuide] = useState(false);
   const totalItems = useMemo(() => Object.values(cart).reduce((a, b) => a + b, 0), [cart]);
   const total = useMemo(() => products.reduce((sum, p) => sum + (p.price ?? 0) * (cart[p.id] ?? 0), 0), [cart, products]);
 
@@ -50,7 +51,8 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
     const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const installed = window.matchMedia("(display-mode: standalone)").matches;
     if (ios && !installed) {
-      setPushMessage("En iPhone o iPad: Safari → Compartir → Agregar a inicio. Abrí el icono y volvé a activar las notificaciones.");
+      setShowIosGuide(true);
+      setPushMessage("Primero instalá la página en la pantalla de inicio.");
       return;
     }
     setPushLoading(true);
@@ -128,18 +130,29 @@ export function StorefrontActions({ tenant, products }: { tenant: Store; product
               {pushLoading ? "Activando…" : "Activar notificaciones"}
             </button>
             {pushMessage && <p role="status" className="mt-2 text-sm text-gray-600">{pushMessage}</p>}
-            <details className="mt-3 text-sm text-gray-600">
-              <summary className="cursor-pointer font-medium">Instrucciones para iPhone y iPad</summary>
-              <ol className="mt-2 list-decimal space-y-1 pl-5">
-                <li>Abrí esta página en Safari.</li>
-                <li>Tocá Compartir y elegí Agregar a inicio.</li>
-                <li>Abrí el comercio desde el nuevo icono.</li>
-                <li>Activá las notificaciones desde la página instalada.</li>
-              </ol>
-            </details>
+            <button type="button" onClick={() => setShowIosGuide(true)} className="mt-3 text-sm font-medium text-emerald-700 underline">
+              Instrucciones para iPhone y iPad
+            </button>
           </div>
         </div>
       </section>
+      {showIosGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="ios-pwa-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 id="ios-pwa-title" className="text-lg font-semibold">Agregar el comercio a inicio</h2>
+            <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-gray-700">
+              <li>Abrí esta página en Safari desde tu iPhone o iPad.</li>
+              <li>Tocá el botón Compartir.</li>
+              <li>Elegí Agregar a pantalla de inicio y confirmá.</li>
+              <li>Abrí el comercio desde el nuevo icono.</li>
+              <li>Volvé a tocar Activar notificaciones y aceptá el permiso.</li>
+            </ol>
+            <button type="button" onClick={() => setShowIosGuide(false)} className="mt-6 w-full rounded-lg bg-emerald-700 px-4 py-2.5 font-semibold text-white">
+              Entendido
+            </button>
+          </section>
+        </div>
+      )}
     </>
   );
 }

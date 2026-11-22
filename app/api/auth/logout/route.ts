@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }).catch(() => undefined);
   }
 
-  const response = NextResponse.json({ success: true });
+  const response = NextResponse.redirect(new URL("/login", request.url));
   response.cookies.delete("sb-access-token");
   response.cookies.delete("sb-refresh-token");
   return response;

@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
           return NextResponse.json({ error: "Faltan horarios para " + day }, { status: 400 });
         }
         const schedule = item as Record<string, unknown>;
-        const validTime = (value: unknown) => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+        const validTime = (value: unknown): value is string => typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
         if (typeof schedule.closed !== "boolean" || !validTime(schedule.open) || !validTime(schedule.close) ||
             (!schedule.closed && schedule.open >= schedule.close)) {
           return NextResponse.json({ error: "Rango horario inválido para " + day }, { status: 400 });

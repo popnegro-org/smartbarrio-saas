@@ -94,3 +94,14 @@ test("dashboard authentication fails closed when Supabase is unavailable", () =>
   assert.match(middleware, /return unavailable\(\)/);
   assert.match(middleware, /httpOnly: true/);
 });
+
+
+test("email validation uses bounded string operations and rejects malformed input", async () => {
+  const { isValidEmailAddress } = await import("../lib/security/email-validation.ts");
+  for (const address of ["owner@example.com", "first.last+tag@example.co.ar"]) {
+    assert.equal(isValidEmailAddress(address), true, address);
+  }
+  for (const address of ["", "plain-address", "@example.com", "owner@", "owner@example", "owner..name@example.com", ".owner@example.com", "owner@example..com", "a".repeat(255) + "@example.com", "owner!@!.".repeat(1000) + "@example.com"]) {
+    assert.equal(isValidEmailAddress(address), false, "rejected: " + address.slice(0, 80));
+  }
+});

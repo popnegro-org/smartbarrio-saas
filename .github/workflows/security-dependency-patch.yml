@@ -1,0 +1,70 @@
+name: Patch framework security dependencies
+
+on:
+  push:
+    branches:
+      - feat/multitenant-saas-foundation
+    paths:
+      - .github/workflows/security-dependency-patch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: security-dependency-patch
+  cancel-in-progress: false
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout candidate branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/multitenant-saas-foundation
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Upgrade patched Next.js and React releases
+        run: npm install --save-exact next@15.5.29 react@19.1.10 react-dom@19.1.10
+
+      - name: Apply non-breaking audit fixes
+        run: npm audit fix
+
+      - name: Verify dependency audit
+        run: npm audit --audit-level=high
+
+      - name: Lint source
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_URL: https://smartbarrio.example
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          AUTOMATION_SECRET: placeholder-automation-secret-with-at-least-32-characters
+          TOKEN_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
+      - name: Commit verified dependency lockfile
+        run: |
+          if ! git diff --quiet -- package.json package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json package-lock.json
+            git commit -m "chore: patch Next.js and React security releases"
+            git push origin HEAD:feat/multitenant-saas-foundation
+          fi

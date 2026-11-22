@@ -76,9 +76,11 @@ test("Tenant storefront: catalog, LocalBusiness JSON-LD, PWA manifest and iOS gu
   const manifest = await manifestResponse.json();
   expect(manifest.start_url).toBe("/demo-comercio");
 
+  await page.screenshot({ path: test.info().outputPath("tenant-storefront.png"), fullPage: true });
   await page.getByRole("button", { name: /Agregar Yerba orgánica/i }).click();
   await expect(page.getByRole("button", { name: /Pedir por WhatsApp/i })).toBeVisible();
   await page.getByRole("button", { name: /Instrucciones para iPhone y iPad/i }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("tenant-storefront-ios-guide.png"), fullPage: true });
   await expect(page.getByText(/Agregar a pantalla de inicio/i)).toBeVisible();
 });

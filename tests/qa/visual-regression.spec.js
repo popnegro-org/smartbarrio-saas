@@ -13,7 +13,8 @@ test.describe('Visual regression · production baseline', () => {
       const name = route.replace(/[^a-z0-9]+/gi, '_') || 'home';
       const baseline = path.join(SNAPSHOT_DIR, name + '-baseline.png');
       const snapshotName = 'production/' + name + '.png';
-      const expected = test.info().snapshotPath(snapshotName);
+      const normalized = name.replace(/^_+|_+$/g, '').replace(/_+/g, '-').toLowerCase();
+      const expected = test.info().snapshotPath('production-' + normalized + '-' + process.platform + '.png');
       fs.mkdirSync(path.dirname(expected), { recursive: true });
 
       const production = await browser.newPage({ viewport: { width: 1440, height: 1000 } });

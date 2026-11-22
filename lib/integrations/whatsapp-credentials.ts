@@ -10,7 +10,7 @@ export async function storeWhatsAppCredential(instanceId: string, apiToken: stri
     prefer: "resolution=merge-duplicates,return=minimal",
     body: [{
       instance_id: instanceId,
-      api_token_ciphertext: encryptToken(apiToken),
+      api_token_ciphertext: encryptToken(apiToken, "whatsapp:" + instanceId),
       encryption_key_version: TOKEN_ENCRYPTION_KEY_VERSION,
       updated_at: new Date().toISOString(),
     }],
@@ -22,5 +22,5 @@ export async function readWhatsAppCredential(instanceId: string): Promise<string
     "whatsapp_credentials?select=api_token_ciphertext,encryption_key_version&instance_id=eq." + instanceId + "&limit=1",
     { admin: true },
   );
-  return rows[0] ? decryptToken(rows[0].api_token_ciphertext) : null;
+  return rows[0] ? decryptToken(rows[0].api_token_ciphertext, "whatsapp:" + instanceId) : null;
 }

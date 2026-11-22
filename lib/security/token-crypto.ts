@@ -11,18 +11,20 @@ function encryptionKey(): Buffer {
   return key;
 }
 
-export function encryptToken(plaintext: string): string {
+export function encryptToken(plaintext: string, context: string): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv(ALGORITHM, encryptionKey(), iv);
+  cipher.setAAD(Buffer.from(context, "utf8"));
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
   return [iv, tag, encrypted].map((part) => part.toString("base64url")).join(".");
 }
 
-export function decryptToken(payload: string): string {
+export function decryptToken(payload: string, context: string): string {
   const [ivText, tagText, encryptedText] = payload.split(".");
   if (!ivText || !tagText || !encryptedText) throw new Error("Invalid encrypted token payload");
   const decipher = createDecipheriv(ALGORITHM, encryptionKey(), Buffer.from(ivText, "base64url"));
+  decipher.setAAD(Buffer.from(context, "utf8"));
   decipher.setAuthTag(Buffer.from(tagText, "base64url"));
   return Buffer.concat([
     decipher.update(Buffer.from(encryptedText, "base64url")),

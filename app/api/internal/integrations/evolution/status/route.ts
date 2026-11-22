@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   if (!isInternalRequest(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let claimedEventId: string | null = null;
 
   try {
     const body = (await request.json()) as { tenantId?: unknown; offerId?: unknown; eventId?: unknown };
@@ -24,6 +25,12 @@ export async function POST(request: NextRequest) {
     const offer = offers[0];
     if (!offer) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
     if (offer.channels?.whatsapp !== true) return NextResponse.json({ skipped: true, reason: "channel_disabled" });
+
+    const tenants = await supabaseRequest<{ slug: string; is_published: boolean }[]>(
+      "tenants?select=slug,is_published&id=eq." + body.tenantId + "&limit=1",
+      { admin: true },
+    );
+    if (!tenants[0]?.is_published) return NextResponse.json({ skipped: true, reason: "commerce_not_published" });
 
     const instances = await supabaseRequest<Instance[]>(
       "whatsapp_instances?select=instance_name,connection_status&tenant_id=eq." + body.tenantId + "&limit=1",
@@ -58,6 +65,7 @@ export async function POST(request: NextRequest) {
         { method: "PATCH", admin: true, prefer: "return=representation", body: { status: "processing", attempts: event.attempts + 1, last_error: null } },
       );
       event = updated[0] ?? event;
+      claimedEventId = event.id;
     } else {
       const inserted = await supabaseRequest<IntegrationEvent[]>(
         "integration_events?select=id,status,attempts",
@@ -69,6 +77,7 @@ export async function POST(request: NextRequest) {
         },
       );
       event = inserted[0];
+      claimedEventId = event?.id ?? null;
       if (!event) {
         events = await supabaseRequest<IntegrationEvent[]>(
           "integration_events?select=id,status,attempts&tenant_id=eq." + body.tenantId +
@@ -80,7 +89,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const message = [offer.title, offer.description ?? "", appUrl.replace(/\/$/, "") + "/" + body.tenantId].filter(Boolean).join("\n");
+    const message = [offer.title, offer.description ?? "", appUrl.replace(/\/$/, "") + "/" + tenants[0].slug].filter(Boolean).join("\n");
     const response = await fetch(baseUrl.replace(/\/$/, "") + "/message/sendStatus/" + encodeURIComponent(instance.instance_name), {
       method: "POST",
       headers: { apikey: apiKey, "Content-Type": "application/json" },
@@ -107,6 +116,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Evolution status dispatch failed", error);
+    if (claimedEventId) {
+      await supabaseRequest("integration_events?id=eq." + claimedEventId, {
+        method: "PATCH", admin: true, prefer: "return=minimal",
+        body: { status: "failed", last_error: "Evolution status dispatch failed", next_retry_at: new Date(Date.now() + 60000).toISOString() },
+      }).catch(() => null);
+    }
     return NextResponse.json({ error: "WhatsApp status dispatch failed" }, { status: 502 });
   }
 }

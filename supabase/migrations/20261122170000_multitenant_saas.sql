@@ -271,7 +271,7 @@ begin
      or p_encryption_key_version is null or char_length(p_encryption_key_version) > 32 then
     raise exception 'Invalid encrypted credential payload' using errcode = '22023';
   end if;
-  insert into private.social_credentials(
+  insert into private.social_credentials as current_credentials(
     integration_id, access_token_ciphertext, refresh_token_ciphertext, encryption_key_version, updated_at
   )
   values (
@@ -279,7 +279,7 @@ begin
   )
   on conflict (integration_id) do update set
     access_token_ciphertext = excluded.access_token_ciphertext,
-    refresh_token_ciphertext = coalesce(excluded.refresh_token_ciphertext, private.social_credentials.refresh_token_ciphertext),
+    refresh_token_ciphertext = coalesce(excluded.refresh_token_ciphertext, current_credentials.refresh_token_ciphertext),
     encryption_key_version = excluded.encryption_key_version,
     updated_at = now();
 end;

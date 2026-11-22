@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseConfig } from "@/lib/supabase/rest";
+import { isValidEmailAddress } from "@/lib/security/email-validation";
 
 export const runtime = "nodejs";
 
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { email?: unknown; password?: unknown };
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 128) {
+    if (!isValidEmailAddress(email) || password.length < 12 || password.length > 128) {
       return NextResponse.json({ error: "Ingresá un correo válido y una contraseña de al menos 12 caracteres" }, { status: 400 });
     }
 

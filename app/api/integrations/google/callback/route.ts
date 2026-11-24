@@ -6,7 +6,7 @@ import { supabaseRequest } from "@/lib/supabase/rest";
 
 type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; scope?: string };
 type AccountsResponse = { accounts?: Array<{ name: string; accountName?: string }> };
-type LocationsResponse = { locations?: Array<{ name: string; title?: string }> };
+type LocationsResponse = { locations?: Array<{ name: string; title?: string }>; nextPageToken?: string };
 type IntegrationRow = { id: string };
 
 function returnToDashboard(request: NextRequest, result: string) {
@@ -44,24 +44,38 @@ export async function GET(request: NextRequest) {
     if (!accountsResponse.ok) throw new Error("Google Business account lookup failed");
     const accounts = ((await accountsResponse.json()) as AccountsResponse).accounts ?? [];
 
-    let location: { name: string; title?: string } | null = null;
-    let accountLabel = "";
-    let accountResource = "";
+    const candidates: Array<{ location: { name: string; title?: string }; accountLabel: string; accountResource: string }> = [];
     for (const account of accounts) {
-      const locationsResponse = await fetch(
-        "https://mybusinessbusinessinformation.googleapis.com/v1/" + account.name + "/locations?readMask=name,title&pageSize=100",
-        { headers: { Authorization: "Bearer " + tokens.access_token }, cache: "no-store" },
-      );
-      if (!locationsResponse.ok) continue;
-      const locations = ((await locationsResponse.json()) as LocationsResponse).locations ?? [];
-      if (locations[0]) {
-        location = locations[0];
-        accountLabel = account.accountName ?? account.name;
-        accountResource = account.name;
-        break;
-      }
+      let pageToken: string | undefined;
+      do {
+        const url = new URL("https://mybusinessbusinessinformation.googleapis.com/v1/" + account.name + "/locations");
+        url.searchParams.set("readMask", "name,title");
+        url.searchParams.set("pageSize", "100");
+        if (pageToken) url.searchParams.set("pageToken", pageToken);
+        const locationsResponse = await fetch(url, {
+          headers: { Authorization: "Bearer " + tokens.access_token }, cache: "no-store",
+        });
+        if (!locationsResponse.ok) throw new Error("Google Business location lookup failed");
+        const page = (await locationsResponse.json()) as LocationsResponse;
+        for (const location of page.locations ?? []) {
+          candidates.push({
+            location,
+            accountLabel: account.accountName ?? account.name,
+            accountResource: account.name,
+          });
+        }
+        pageToken = page.nextPageToken;
+      } while (pageToken);
     }
-    if (!location) throw new Error("No Google Business location available for this account");
+
+    // Never bind a tenant to the first location returned by Google: accounts
+    // can manage multiple businesses and the first result is not authoritative.
+    if (candidates.length === 0) throw new Error("No Google Business location available for this account");
+    if (candidates.length !== 1) {
+      console.warn("Google OAuth has multiple locations; explicit merchant selection is required");
+      return returnToDashboard(request, "multiple_locations");
+    }
+    const { location, accountLabel, accountResource } = candidates[0];
 
     const rows = await supabaseRequest<IntegrationRow[]>("social_integrations?on_conflict=tenant_id,provider&select=id", {
       method: "POST", admin: true, prefer: "resolution=merge-duplicates,return=representation",

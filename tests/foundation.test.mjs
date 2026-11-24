@@ -105,3 +105,19 @@ test("email validation uses bounded string operations and rejects malformed inpu
     assert.equal(isValidEmailAddress(address), false, "rejected: " + address.slice(0, 80));
   }
 });
+
+test("Instagram failed retries are claimed with a conditional atomic transition", () => {
+  const route = fs.readFileSync("app/api/internal/integrations/instagram/reply/route.ts", "utf8");
+  assert.match(route, /status=eq\.failed&select=id,status,attempts/);
+  assert.match(route, /if \(!updated\[0\]\)/);
+  assert.match(route, /Only one concurrent delivery can/);
+});
+
+test("Google OAuth never silently selects the first managed business location", () => {
+  const route = fs.readFileSync("app/api/integrations/google/callback/route.ts", "utf8");
+  assert.match(route, /candidates\.length !== 1/);
+  assert.match(route, /multiple_locations/);
+  assert.match(route, /nextPageToken/);
+  assert.doesNotMatch(route, /location = locations\[0\]/);
+});
+

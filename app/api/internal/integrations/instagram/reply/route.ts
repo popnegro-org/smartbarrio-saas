@@ -48,11 +48,16 @@ export async function POST(request: NextRequest) {
     if (event?.status === "succeeded") return NextResponse.json({ success: true, duplicate: true });
     if (event?.status === "processing") return NextResponse.json({ accepted: true, duplicate: true }, { status: 202 });
     if (event) {
+      // Claim a failed retry atomically. Only one concurrent delivery can
+      // transition failed -> processing; the others must not send a message.
       const updated = await supabaseRequest<EventRow[]>(
-        "integration_events?id=eq." + event.id + "&select=id,status,attempts",
+        "integration_events?id=eq." + event.id + "&status=eq.failed&select=id,status,attempts",
         { method: "PATCH", admin: true, prefer: "return=representation", body: { status: "processing", attempts: event.attempts + 1, last_error: null } },
       );
-      event = updated[0] ?? event;
+      if (!updated[0]) {
+        return NextResponse.json({ accepted: true, duplicate: true }, { status: 202 });
+      }
+      event = updated[0];
     } else {
       const inserted = await supabaseRequest<EventRow[]>(
         "integration_events?select=id,status,attempts",

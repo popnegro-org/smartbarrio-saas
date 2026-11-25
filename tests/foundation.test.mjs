@@ -121,3 +121,18 @@ test("Google OAuth never silently selects the first managed business location", 
   assert.doesNotMatch(route, /location = locations\[0\]/);
 });
 
+
+
+test("WhatsApp status failed retries are claimed with a conditional atomic transition", () => {
+  const route = fs.readFileSync("app/api/internal/integrations/evolution/status/route.ts", "utf8");
+  assert.match(route, /status=eq\\.failed&select=id,status,attempts/);
+  assert.match(route, /if \\(!updated\\[0\\]\\)/);
+  assert.match(route, /Only one concurrent delivery can/);
+});
+
+test("Google Business failed retries are claimed with a conditional atomic transition", () => {
+  const route = fs.readFileSync("app/api/internal/integrations/google/publish/route.ts", "utf8");
+  assert.match(route, /status=eq\\.failed&select=id,status,attempts/);
+  assert.match(route, /if \\(!updated\\[0\\]\\)/);
+  assert.match(route, /prevent duplicate Google posts/);
+});

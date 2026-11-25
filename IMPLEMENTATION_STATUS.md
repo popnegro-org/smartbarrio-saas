@@ -1,0 +1,117 @@
+# SmartBarrio — implementación y estado de validación
+
+## Alcance implementado
+
+SmartBarrio es un PMV SaaS multitenant para comercios de barrio en Argentina.
+
+- Next.js App Router, TypeScript y Tailwind.
+- Supabase Auth, PostgreSQL, políticas RLS y Storage con bucket público tenant-assets y carga de logos restringida por tenant.
+- Supabase Edge Function dispatch-offer con autenticación de servidor e idempotencia; activación opcional mediante SUPABASE_FUNCTIONS_ENABLED.
+- Registro, onboarding, alta/publicación de comercios y selector de tenant.
+- Dashboard para perfil comercial, catálogo, ofertas e integraciones.
+- Landing pública por slug, SEO local, JSON-LD LocalBusiness, horarios, carrito y pedidos por WhatsApp.
+- Manifiesto PWA dinámico por comercio para que la instalación abra la landing correcta.
+- Gestión de horarios por día y sincronización con Google Business Profile; fallback de copiar/publicar.
+- PWA con manifest, icono e instrucciones de instalación para iOS.
+- OneSignal Web Push segmentado por tenant_id.
+- Evolution API: instancia por comercio, QR, webhooks y envío de mensajes/Estados.
+- Meta OAuth, suscripción de webhooks y respuestas de Instagram Messaging.
+- Google OAuth, Local Posts y fallback de copiar/publicar.
+- Workflows n8n exportables y desactivados por defecto.
+- Docker Compose para PostgreSQL, Redis, n8n, Evolution API y Caddy.
+
+## Comandos de verificación
+
+Requiere Node.js 22 o superior.
+
+    npm ci
+    npm run lint
+    npm run typecheck
+    npm test
+    npm run build
+    npm audit --audit-level=high
+
+El workflow Browser QA ejecuta lint, typecheck, pruebas unitarias, validación Docker Compose, Playwright funcional y accesibilidad. También valida la Edge Function con Deno. Lighthouse CI y CodeQL se ejecutan sobre la rama candidata.
+
+## Dependencias de seguridad
+
+La rama fija las versiones compatibles y auditadas:
+
+- Next.js 15.5.29
+- React / React DOM 19.1.10
+- PostCSS 8.5.33 mediante overrides
+
+La automatización Patch framework security dependencies actualiza el lockfile, ejecuta auditoría, lint, typecheck, tests y build antes de publicar el commit en la rama candidata. No utiliza npm audit fix --force.
+
+## Variables y servicios externos
+
+Copiar .env.example y configurar los secretos reales en el entorno correspondiente. Nunca versionar .env.local ni .env.
+
+Se requieren, como mínimo:
+
+- Supabase URL, publishable key y service-role key.
+- OneSignal App ID y REST API key.
+- Evolution API URL y API key global.
+- AUTOMATION_SECRET, EVOLUTION_WEBHOOK_SECRET y TOKEN_ENCRYPTION_KEY.
+- Meta App ID/Secret, verify token y redirect URI.
+- Google OAuth Client ID/Secret y redirect URI.
+- URL pública de n8n para webhooks.
+
+Los tokens OAuth y tokens por instancia de Evolution se cifran con AES-256-GCM. Las tablas social_credentials y whatsapp_credentials no conceden acceso a anon ni authenticated; solo service_role puede leerlas o modificarlas.
+
+## n8n
+
+Importar manualmente:
+
+- n8n/workflows/offer-multichannel.json
+- n8n/workflows/auto-reply-neighborhood.json
+
+Los workflows quedan active=false. Configurar credenciales/variables, validar los webhooks y activar cada workflow desde n8n después de las pruebas de integración.
+
+Después de restaurar y enlazar el proyecto Supabase, aplicar la migración y desplegar la función:
+
+    supabase db push
+    supabase secrets set AUTOMATION_SECRET=... N8N_WEBHOOK_BASE_URL=...
+    supabase functions deploy dispatch-offer
+
+Activar SUPABASE_FUNCTIONS_ENABLED=true en Vercel únicamente después de verificar la función. Si permanece false, Next.js envía directamente al webhook n8n.
+
+## Estado de infraestructura — verificado 22/11/2026
+
+- Supabase `rpopiqeulnxbsclvvfuf` está `ACTIVE_HEALTHY` (PostgreSQL 17.11, región `sa-east-1`).
+- Migración `20261122170000_multitenant_saas.sql` aplicada correctamente. Supabase registra la versión `20261122224249` con nombre `20261122170000_multitenant_saas`.
+- Verificación posterior: 10 tablas del modelo multitenant presentes, todas con RLS habilitado; 21 políticas esperadas verificadas entre tablas públicas y Storage; bucket `tenant-assets` presente; RPC `public.create_tenant` y helper `private.has_tenant_role` presentes.
+- Las tablas de credenciales `social_credentials` y `whatsapp_credentials` permanecen deliberadamente sin políticas de usuario: RLS habilitado y privilegios únicamente para `service_role`. No habilitar acceso desde clientes.
+- Los avisos informativos RLS sin políticas en `leads` y `sales_inquiries` son tablas preexistentes de recepción de consultas; mantenerlas cerradas a acceso directo y usar su flujo server-side existente. No agregar políticas públicas genéricas.
+- Security Advisor: sin hallazgos de seguridad de nivel WARNING/ERROR; quedan cuatro avisos informativos RLS sin políticas: `leads`, `sales_inquiries` (tablas preexistentes, cerradas a acceso directo), y `social_credentials`, `whatsapp_credentials` (credenciales server-only). Verificación SQL de privilegios: anon/authenticated no pueden leer credenciales; service_role sí. Anon no puede ejecutar `create_tenant`; authenticated sí.
+- Edge Function `smartbarrio-submit`: activa (versión 3). `dispatch-offer`: todavía no desplegada.
+- Vercel: `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` configuradas solo para Preview y la rama candidata. No se modificó Production.
+- Bloqueo: `SUPABASE_SERVICE_ROLE_KEY`, `AUTOMATION_SECRET`, `N8N_WEBHOOK_BASE_URL` y credenciales de proveedores no están disponibles para configurar/verificar el flujo server-side. No se generaron ni inventaron secretos.
+- Preview candidato: deployment READY en https://smartbarrio-saas-f6wka7p9b-popnegros-projects.vercel.app, commit `9856f106a8fade5bf24d70a651cba30ed3496a12`. Este deployment precede a la aplicación de la migración y debe reconstruirse para validar el flujo conectado a Supabase.
+
+## Correcciones de seguridad y QA — 22/11/2026
+
+- El middleware del dashboard ahora falla de forma cerrada con HTTP 503 si falta la configuración de Supabase o el proveedor de autenticación no responde; no permite continuar sin validar sesión.
+- Se añadió una prueba de regresión para esta condición.
+- Se corrigieron valores CSS de flex alignment (`start`/`end`) que producían advertencias de Autoprefixer.
+- Browser QA: PASS (lint, Deno check, typecheck, unit tests, Docker Compose, build y Playwright funcional/accesibilidad).
+- Lighthouse CI: PASS. CodeQL: PASS.
+- Evidencia Browser QA: artifact del workflow run 45078586143.
+
+## Seguridad de despliegue
+
+- No exponer service-role keys, tokens OAuth ni tokens de Evolution en el navegador.
+- No abrir los puertos de PostgreSQL o Redis en el VPS.
+- Restringir Caddy a HTTPS y proteger el editor n8n con su autenticación de usuario.
+- Importar los workflows inicialmente desactivados.
+- No enviar mensajes, publicar ofertas reales ni ejecutar cambios en producción durante QA.
+
+## Criterio de cierre
+
+La migración base está aplicada y verificada. El PR permanece Draft y sin merge a main. Para completar el PMV conectado aún se requiere:
+
+1. Incorporar `SUPABASE_SERVICE_ROLE_KEY` como secreto server-side en Vercel Preview (no disponible mediante las conexiones actuales; no reutilizar credenciales de Neon).
+2. Configurar y verificar `AUTOMATION_SECRET` y `N8N_WEBHOOK_BASE_URL` antes de desplegar `dispatch-offer`.
+3. Reconstruir Preview con la migración aplicada y validar registro, login, onboarding, catálogo y aislamiento entre dos tenants con cuentas de prueba autorizadas.
+4. Configurar credenciales reales de Meta, Google, OneSignal, Evolution API y n8n; las integraciones permanecen desactivadas hasta completar pruebas seguras.
+5. Completar revisión visual/funcional y mantener el HUMAN GATE antes de merge a main o cualquier cambio crítico de producción.

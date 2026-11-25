@@ -1,0 +1,355 @@
+{
+  "name": "SmartBarrio - Oferta multicanal",
+  "nodes": [
+    {
+      "id": "offer-webhook",
+      "name": "Oferta webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "smartbarrio/offers",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-event",
+      "name": "Validar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const request = $input.first().json;\nconst headers = request.headers ?? {};\nconst secret = $env.AUTOMATION_SECRET;\nif (!secret || headers['x-automation-secret'] !== secret) throw new Error('Unauthorized webhook');\nconst body = request.body ?? {};\nfor (const key of ['tenantId', 'offerId', 'eventId']) if (typeof body[key] !== 'string' || !body[key]) throw new Error('Invalid event: ' + key);\nreturn [{ json: { tenantId: body.tenantId, offerId: body.offerId, eventId: body.eventId } }];"
+      }
+    },
+    {
+      "id": "get-offer",
+      "name": "Consultar oferta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/offers/' + $json.offerId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "push",
+      "name": "OneSignal push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.onesignal.com/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Key ' + $env.ONESIGNAL_REST_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {app_id:$env.ONESIGNAL_APP_ID, idempotency_key:$node['Validar evento'].json.eventId, filters:[{field:'tag',key:'tenant_id',relation:'=',value:$node['Consultar oferta'].json.tenantId}], headings:{es:$node['Consultar oferta'].json.title}, contents:{es:$node['Consultar oferta'].json.description || $node['Consultar oferta'].json.title}, url:$env.APP_BASE_URL + '/' + $node['Consultar oferta'].json.slug, data:{tenantId:$node['Consultar oferta'].json.tenantId,offerId:$node['Consultar oferta'].json.id}} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "evolution-status",
+      "name": "Evolution WhatsApp Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/integrations/evolution/status' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {tenantId:$node['Consultar oferta'].json.tenantId,offerId:$node['Consultar oferta'].json.id,eventId:$node['Validar evento'].json.eventId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "google-post",
+      "name": "Google Business post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        920,
+        500
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.APP_BASE_URL + '/api/internal/integrations/google/publish' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.AUTOMATION_SECRET }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {tenantId:$node['Consultar oferta'].json.tenantId,offerId:$node['Consultar oferta'].json.id,eventId:$node['Validar evento'].json.eventId} }}",
+        "options": {
+          "timeout": 20000
+        }
+      }
+    },
+    {
+      "id": "if-push",
+      "name": "¿Push habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        80
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-push-condition",
+              "leftValue": "={{ $json.channels.push }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "if-whatsapp",
+      "name": "¿WhatsApp habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-whatsapp-condition",
+              "leftValue": "={{ $json.channels.whatsapp }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "if-google",
+      "name": "¿Google habilitado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        820,
+        520
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-google-condition",
+              "leftValue": "={{ $json.channels.google }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Oferta webhook": {
+      "main": [
+        [
+          {
+            "node": "Validar evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar evento": {
+      "main": [
+        [
+          {
+            "node": "Consultar oferta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar oferta": {
+      "main": [
+        [
+          {
+            "node": "¿Push habilitado?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿WhatsApp habilitado?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "¿Google habilitado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Push habilitado?": {
+      "main": [
+        [
+          {
+            "node": "OneSignal push",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿WhatsApp habilitado?": {
+      "main": [
+        [
+          {
+            "node": "Evolution WhatsApp Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "¿Google habilitado?": {
+      "main": [
+        [
+          {
+            "node": "Google Business post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

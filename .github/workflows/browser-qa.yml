@@ -14,6 +14,11 @@ jobs:
   browser-functional-accessibility:
     name: Browser + Functional + Accessibility QA
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: qa-publishable-key
+      SUPABASE_SERVICE_ROLE_KEY: qa-service-role-key
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,10 +29,40 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Lint source
+        run: npm run lint
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck Supabase Edge Functions
+        run: deno check supabase/functions/dispatch-offer/index.ts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+
+      - name: Validate Docker Compose
+        run: |
+          cp .env.example infra/.env
+          docker compose --env-file infra/.env -f infra/docker-compose.yml config --quiet
+          rm infra/.env
       - name: Install Playwright
         run: npm install --no-save @playwright/test
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Start mock Supabase REST
+        run: |
+          node tests/qa/mock-supabase.mjs > /tmp/mock-supabase.log 2>&1 &
+          for attempt in $(seq 1 20); do
+            if curl -fsS "http://127.0.0.1:54321/rest/v1/tenants?select=slug" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/mock-supabase.log
+          exit 1
+
       - name: Build
         run: npm run build
       - name: Start application
@@ -56,7 +91,7 @@ jobs:
           if-no-files-found: ignore
 
   visual-regression:
-    name: Visual Regression · HUMAN GATE
+    name: Visual Regression Evidence (non-blocking)
     runs-on: ubuntu-latest
     needs: browser-functional-accessibility
     continue-on-error: true
@@ -86,7 +121,7 @@ jobs:
           done
           cat /tmp/smartbarrio-next.log
           exit 1
-      - name: Compare UI with production
+      - name: Capture visual evidence (production and candidate)
         run: npx playwright test tests/qa/visual-regression.spec.js
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000

@@ -58,3 +58,29 @@ test('Accessibility QA: images and form controls have accessible names', async (
     expect(unnamedInputs, 'Unnamed controls on ' + route).toBe(0);
   }
 });
+
+test("Tenant storefront: catalog, LocalBusiness JSON-LD, PWA manifest and iOS guide", async ({ page, request }) => {
+  await page.goto("/demo-comercio", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Almacén Demo" }).first()).toBeVisible();
+  await expect(page.getByText("Yerba orgánica")).toBeVisible();
+  await expect(page.getByText("Lunes")).toBeVisible();
+
+  const jsonLdText = await page.locator('script[type="application/ld+json"]').textContent();
+  const jsonLd = JSON.parse(jsonLdText);
+  expect(jsonLd["@type"]).toBe("LocalBusiness");
+  expect(jsonLd.name).toBe("Almacén Demo");
+  expect(jsonLd.openingHoursSpecification.length).toBeGreaterThan(0);
+
+  const manifestResponse = await request.get("/demo-comercio/manifest.webmanifest");
+  expect(manifestResponse.status()).toBe(200);
+  const manifest = await manifestResponse.json();
+  expect(manifest.start_url).toBe("/demo-comercio");
+
+  await page.screenshot({ path: test.info().outputPath("tenant-storefront.png"), fullPage: true });
+  await page.getByRole("button", { name: /Agregar Yerba orgánica/i }).click();
+  await expect(page.getByRole("button", { name: /Pedir por WhatsApp/i })).toBeVisible();
+  await page.getByRole("button", { name: /Instrucciones para iPhone y iPad/i }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("tenant-storefront-ios-guide.png"), fullPage: true });
+  await expect(page.getByText(/Agregar a pantalla de inicio/i)).toBeVisible();
+});
